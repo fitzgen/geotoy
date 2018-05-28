@@ -5,6 +5,7 @@ use glium::index::PrimitiveType;
 use glium::{glutin, Surface};
 
 use std::f32::consts::PI;
+use std::iter;
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
@@ -23,6 +24,22 @@ impl Point {
 }
 
 implement_vertex!(Point, x, y);
+
+#[derive(Copy, Clone, Debug, Default)]
+#[repr(C)]
+struct Center {
+    center: [f32; 2],
+}
+
+implement_vertex!(Center, center);
+
+#[derive(Copy, Clone, Debug, Default)]
+#[repr(C)]
+struct Kind {
+    kind: u32,
+}
+
+implement_vertex!(Kind, kind);
 
 fn flat_hex_corner(center: Point, size: f32, i: usize) -> Point {
     let angle_deg = 60.0 * (i as f32);
@@ -52,9 +69,14 @@ fn coordinates(rows: usize, columns: usize) -> impl Iterator<Item = EvenqCoordin
 }
 
 struct Hexagon {
+    center: Center,
     points: [Point; 12],
+    kinds: [Kind; 12],
     lines: [u32; 24],
 }
+
+const CORNER: Kind = Kind { kind: 0 };
+const MID: Kind = Kind { kind: 1 };
 
 impl Hexagon {
     fn points(center: Point, size: f32) -> [Point; 12] {
@@ -76,7 +98,13 @@ impl Hexagon {
 
     fn new(center: Point, size: f32) -> Hexagon {
         Hexagon {
+            center: Center {
+                center: [center.x, center.y],
+            },
             points: Self::points(center, size),
+            kinds: [
+                CORNER, MID, CORNER, MID, CORNER, MID, CORNER, MID, CORNER, MID, CORNER, MID,
+            ],
             lines: Self::lines(),
         }
     }
@@ -99,36 +127,39 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     let size = (1.0 - -1.0) / ((cols - 1) as f32 * 1.5);
 
-    let (points, lines): (Vec<_>, Vec<_>) = hexagons(rows, cols, size)
-        .enumerate()
-        .map(|(i, hex)| {
-            let offset = i * hex.points.len();
-            let lines: Vec<_> = hex.lines
-                .iter()
-                .cloned()
-                .map(|idx| idx + (offset as u32))
-                .collect();
-            (hex.points, lines)
-        })
-        .unzip();
-
-    let points: Vec<_> = points
-        .into_iter()
-        .flat_map(|points| {
-            points
-                .iter()
-                .cloned()
-                .map(|p| Point {
-                    x: p.x - 1.0,
-                    y: p.y - 1.0,
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect();
-
-    let lines: Vec<_> = lines.into_iter().flat_map(|lines| lines).collect();
+    let (points, lines, centers, kinds): (Vec<Point>, Vec<u32>, Vec<Center>, Vec<Kind>) =
+        hexagons(rows, cols, size)
+            .enumerate()
+            .map(|(i, mut hex)| {
+                let offset = i * hex.points.len();
+                for idx in hex.lines.iter_mut() {
+                    *idx += offset as u32;
+                }
+                hex
+            })
+            .map(|mut hex| {
+                hex.center.center[0] -= 1.0;
+                hex.center.center[1] -= 1.0;
+                for p in &mut hex.points {
+                    p.x -= 1.0;
+                    p.y -= 1.0;
+                }
+                hex
+            })
+            .fold(
+                (vec![], vec![], vec![], vec![]),
+                |(mut points, mut lines, mut centers, mut kinds), hex| {
+                    points.extend(hex.points.iter().cloned());
+                    lines.extend(hex.lines.iter().cloned());
+                    centers.extend(iter::repeat(hex.center).take(hex.points.len()));
+                    kinds.extend(hex.kinds.iter().cloned());
+                    (points, lines, centers, kinds)
+                },
+            );
 
     let points_vb = glium::VertexBuffer::new(&display, &points)?;
+    let centers_vb = glium::VertexBuffer::new(&display, &centers)?;
+    let kinds_vb = glium::VertexBuffer::new(&display, &kinds)?;
     let index_buffer = glium::IndexBuffer::new(&display, PrimitiveType::LinesList, &lines)?;
 
     // compiling shaders and linking them together
@@ -136,10 +167,23 @@ fn main() -> Result<(), Box<std::error::Error>> {
         140 => {
             vertex: "
                 #version 140
+
                 in float x;
                 in float y;
+
+                in vec2 center;
+                in uint kind;
+
+                uniform float b;
+
                 void main() {
-                    gl_Position = vec4(x, y, 0.0, 1.0);
+                    if (kind == uint(0)) {
+                        vec2 p = vec2(x, y);
+                        vec2 v = center - p;
+                        gl_Position = vec4(p + b * v, 0.0, 1.0);
+                    } else {
+                        gl_Position = vec4(x, y, 0.0, 1.0);
+                    }
                 }
             ",
 
@@ -161,6 +205,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let draw = || {
         // building the uniforms
         let uniforms = uniform! {
+            b: 0.5f32,
         //     matrix: [
         //         [1.0, 0.0, 0.0, 0.0],
         //         [0.0, 1.0, 0.0, 0.0],
@@ -174,7 +219,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         target.clear_color(0.0, 0.0, 0.0, 0.0);
         target
             .draw(
-                &points_vb,
+                (&points_vb, &centers_vb, &kinds_vb),
                 &index_buffer,
                 &program,
                 &uniforms,
