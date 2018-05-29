@@ -163,6 +163,7 @@ fn draw(
     program: &glium::program::Program,
     a: f32,
     b: f32,
+    draw_grid: bool,
     points_vb: &glium::VertexBuffer<Point>,
     attractors_vb: &glium::VertexBuffer<Attractor>,
     kinds_vb: &glium::VertexBuffer<Kind>,
@@ -171,19 +172,21 @@ fn draw(
     let mut target = display.draw();
     target.clear_color(0.0, 0.0, 0.0, 0.0);
 
-    target
-        .draw(
-            (points_vb, attractors_vb, kinds_vb),
-            index_buffer,
-            program,
-            &uniform! {
-                a: 0.0f32,
-                b: 0.0f32,
-                color: [0.3, 0.3, 0.3f32],
-            },
-            &Default::default(),
-        )
-        .unwrap();
+    if draw_grid {
+        target
+            .draw(
+                (points_vb, attractors_vb, kinds_vb),
+                index_buffer,
+                program,
+                &uniform! {
+                    a: 0.0f32,
+                    b: 0.0f32,
+                    color: [0.3, 0.3, 0.3f32],
+                },
+                &Default::default(),
+            )
+            .unwrap();
+    }
 
     target
         .draw(
@@ -285,12 +288,14 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     let mut a: f32 = 0.1;
     let mut b: f32 = 0.6;
+    let mut draw_grid = true;
 
     draw(
         &display,
         &program,
         a,
         b,
+        draw_grid,
         &points_vb,
         &attractors_vb,
         &kinds_vb,
@@ -303,9 +308,18 @@ fn main() -> Result<(), Box<std::error::Error>> {
         match event {
             glutin::Event::WindowEvent { event, .. } => match event {
                 glutin::WindowEvent::KeyboardInput { input, .. }
-                    if input.virtual_keycode == Some(VirtualKeyCode::Escape) =>
+                    if input.state == glutin::ElementState::Pressed =>
                 {
-                    return glutin::ControlFlow::Break
+                    if let Some(keycode) = input.virtual_keycode {
+                        match keycode {
+                            VirtualKeyCode::Escape => return glutin::ControlFlow::Break,
+                            VirtualKeyCode::G => {
+                                draw_grid = !draw_grid;
+                                need_draw = true;
+                            }
+                            _ => {},
+                        }
+                    }
                 }
                 // Break from the main loop when the window is closed.
                 glutin::WindowEvent::Closed => return glutin::ControlFlow::Break,
@@ -330,6 +344,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 &program,
                 a,
                 b,
+                draw_grid,
                 &points_vb,
                 &attractors_vb,
                 &kinds_vb,
