@@ -127,21 +127,35 @@ fn draw(
     kinds_vb: &glium::VertexBuffer<Kind>,
     index_buffer: &glium::IndexBuffer<u32>,
 ) -> Result<(), glium::SwapBuffersError> {
-    let uniforms = uniform! {
-        b: b,
-    };
-
     let mut target = display.draw();
     target.clear_color(0.0, 0.0, 0.0, 0.0);
+
     target
         .draw(
             (points_vb, centers_vb, kinds_vb),
             index_buffer,
             program,
-            &uniforms,
+            &uniform! {
+                b: 0.0f32,
+                color: [0.3, 0.3, 0.3f32],
+            },
             &Default::default(),
         )
         .unwrap();
+
+    target
+        .draw(
+            (points_vb, centers_vb, kinds_vb),
+            index_buffer,
+            program,
+            &uniform! {
+                b: b,
+                color: [1.0, 1.0, 1.0f32],
+            },
+            &Default::default(),
+        )
+        .unwrap();
+
     target.finish()
 }
 
@@ -154,8 +168,8 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop)?;
 
-    let rows = 20;
-    let cols = 20;
+    let rows = 10;
+    let cols = 10;
 
     let size = (1.0 - -1.0) / ((cols - 1) as f32 * 1.5);
 
@@ -221,9 +235,13 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
             fragment: "
                 #version 140
+
+                uniform vec3 color;
+
                 out vec4 f_color;
+
                 void main() {
-                    f_color = vec4(1.0, 1.0, 1.0, 1.0);
+                    f_color = vec4(color, 1.0);
                 }
             "
         },
