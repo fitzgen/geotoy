@@ -261,13 +261,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 uniform float b;
 
                 void main() {
-                    // multipier = kind == 0 ? b : a;
-                    float multiplier = 0.0;
-                    if (kind == uint(0)) {
-                        multiplier = b;
-                    } else {
-                        multiplier = a;
-                    }
+                    float multiplier = kind == uint(0) ? b : a;
 
                     vec2 p = vec2(x, y);
                     vec2 v = attractor - p;
