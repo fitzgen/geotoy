@@ -248,7 +248,6 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let kinds_vb = glium::VertexBuffer::new(&display, &kinds)?;
     let index_buffer = glium::IndexBuffer::new(&display, PrimitiveType::LinesList, &lines)?;
 
-    // compiling shaders and linking them together
     let program = program!(&display,
         140 => {
             vertex: "
@@ -302,42 +301,47 @@ fn main() -> Result<(), Box<std::error::Error>> {
         &index_buffer,
     )?;
 
-    // the main loop
-    events_loop.run_forever(|event| {
+    loop {
+        let mut should_quit = false;
         let mut need_draw = false;
-        match event {
-            glutin::Event::WindowEvent { event, .. } => match event {
-                glutin::WindowEvent::KeyboardInput { input, .. }
+        events_loop.poll_events(|event| {
+            match event {
+                glutin::Event::WindowEvent { event, .. } => match event {
+                    glutin::WindowEvent::KeyboardInput { input, .. }
                     if input.state == glutin::ElementState::Pressed =>
-                {
-                    if let Some(keycode) = input.virtual_keycode {
-                        match keycode {
-                            VirtualKeyCode::Escape => return glutin::ControlFlow::Break,
-                            VirtualKeyCode::G => {
-                                draw_grid = !draw_grid;
-                                need_draw = true;
+                    {
+                        if let Some(keycode) = input.virtual_keycode {
+                            match keycode {
+                                VirtualKeyCode::Escape => should_quit = true,
+                                VirtualKeyCode::G => {
+                                    draw_grid = !draw_grid;
+                                    need_draw = true;
+                                }
+                                _ => {},
                             }
-                            _ => {},
                         }
                     }
-                }
-                // Break from the main loop when the window is closed.
-                glutin::WindowEvent::Closed => return glutin::ControlFlow::Break,
-                // Redraw the triangle when the window is resized.
-                glutin::WindowEvent::Resized(w, h) => {
-                    width = w;
-                    height = h;
-                    need_draw = true;
-                }
-                glutin::WindowEvent::CursorMoved { position, .. } => {
-                    a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
-                    b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
-                    need_draw = true;
-                }
+                    glutin::WindowEvent::Closed => should_quit = true,
+                    glutin::WindowEvent::Resized(w, h) => {
+                        width = w;
+                        height = h;
+                        need_draw = true;
+                    }
+                    glutin::WindowEvent::CursorMoved { position, .. } => {
+                        a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
+                        b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
+                        need_draw = true;
+                    }
+                    _ => (),
+                },
                 _ => (),
-            },
-            _ => (),
+            }
+        });
+
+        if should_quit {
+            return Ok(());
         }
+
         if need_draw {
             draw(
                 &display,
@@ -351,8 +355,5 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 &index_buffer,
             ).unwrap()
         }
-        glutin::ControlFlow::Continue
-    });
-
-    Ok(())
+    }
 }
