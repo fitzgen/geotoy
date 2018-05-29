@@ -2,7 +2,9 @@
 extern crate glium;
 
 use glium::index::PrimitiveType;
-use glium::{glutin, Surface};
+use glium::{
+    glutin::{self, VirtualKeyCode}, Surface,
+};
 
 use std::f32::consts::PI;
 use std::iter;
@@ -116,9 +118,39 @@ fn hexagons(rows: usize, columns: usize, size: f32) -> impl Iterator<Item = Hexa
         .map(move |center| Hexagon::new(center, size))
 }
 
+fn draw(
+    display: &glium::Display,
+    program: &glium::program::Program,
+    b: f32,
+    points_vb: &glium::VertexBuffer<Point>,
+    centers_vb: &glium::VertexBuffer<Center>,
+    kinds_vb: &glium::VertexBuffer<Kind>,
+    index_buffer: &glium::IndexBuffer<u32>,
+) -> Result<(), glium::SwapBuffersError> {
+    let uniforms = uniform! {
+        b: b,
+    };
+
+    let mut target = display.draw();
+    target.clear_color(0.0, 0.0, 0.0, 0.0);
+    target
+        .draw(
+            (points_vb, centers_vb, kinds_vb),
+            index_buffer,
+            program,
+            &uniforms,
+            &Default::default(),
+        )
+        .unwrap();
+    target.finish()
+}
+
 fn main() -> Result<(), Box<std::error::Error>> {
+    let mut width = 2048;
+    let mut height = 2048;
+
     let mut events_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new().with_dimensions(2048, 2048);
+    let window = glutin::WindowBuilder::new().with_dimensions(width, height);
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop)?;
 
@@ -197,52 +229,54 @@ fn main() -> Result<(), Box<std::error::Error>> {
         },
     )?;
 
-    // Here we draw the black background and triangle to the screen using the previously
-    // initialised resources.
-    //
-    // In this case we use a closure for simplicity, however keep in mind that most serious
-    // applications should probably use a function that takes the resources as an argument.
-    let draw = || {
-        // building the uniforms
-        let uniforms = uniform! {
-            b: 0.5f32,
-        //     matrix: [
-        //         [1.0, 0.0, 0.0, 0.0],
-        //         [0.0, 1.0, 0.0, 0.0],
-        //         [0.0, 0.0, 1.0, 0.0],
-        //         [0.0, 0.0, 0.0, 1.0f32]
-        //     ]
-        };
+    let mut b: f32 = 0.6;
 
-        // drawing a frame
-        let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
-        target
-            .draw(
-                (&points_vb, &centers_vb, &kinds_vb),
-                &index_buffer,
-                &program,
-                &uniforms,
-                &Default::default(),
-            )
-            .unwrap();
-        target.finish()
-    };
-
-    // Draw the triangle to the screen.
-    draw()?;
+    draw(
+        &display,
+        &program,
+        b,
+        &points_vb,
+        &centers_vb,
+        &kinds_vb,
+        &index_buffer,
+    )?;
 
     // the main loop
     events_loop.run_forever(|event| {
+        let mut need_draw = false;
         match event {
             glutin::Event::WindowEvent { event, .. } => match event {
+                glutin::WindowEvent::KeyboardInput { input, .. }
+                    if input.virtual_keycode == Some(VirtualKeyCode::Escape) =>
+                {
+                    return glutin::ControlFlow::Break
+                }
                 // Break from the main loop when the window is closed.
                 glutin::WindowEvent::Closed => return glutin::ControlFlow::Break,
                 // Redraw the triangle when the window is resized.
-                glutin::WindowEvent::Resized(..) => draw().unwrap(),
+                glutin::WindowEvent::Resized(w, h) => {
+                    width = w;
+                    height = h;
+                    need_draw = true;
+                }
+                glutin::WindowEvent::CursorMoved { position, .. } => {
+                    b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
+                    need_draw = true;
+                }
                 _ => (),
             },
             _ => (),
+        }
+        if need_draw {
+            draw(
+                &display,
+                &program,
+                b,
+                &points_vb,
+                &centers_vb,
+                &kinds_vb,
+                &index_buffer,
+            ).unwrap()
         }
         glutin::ControlFlow::Continue
     });
