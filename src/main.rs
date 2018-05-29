@@ -29,11 +29,19 @@ implement_vertex!(Point, x, y);
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
-struct Center {
-    center: [f32; 2],
+struct Attractor {
+    attractor: [f32; 2],
 }
 
-implement_vertex!(Center, center);
+impl From<Point> for Attractor {
+    fn from(p: Point) -> Attractor {
+        Attractor {
+            attractor: [p.x, p.y],
+        }
+    }
+}
+
+implement_vertex!(Attractor, attractor);
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
@@ -71,43 +79,75 @@ fn coordinates(rows: usize, columns: usize) -> impl Iterator<Item = EvenqCoordin
 }
 
 struct Hexagon {
-    center: Center,
-    points: [Point; 12],
-    kinds: [Kind; 12],
-    lines: [u32; 24],
+    center: Point,
+    corners: [Point; 6],
+    midpoints: [Point; 12],
 }
 
 const CORNER: Kind = Kind { kind: 0 };
 const MID: Kind = Kind { kind: 1 };
 
 impl Hexagon {
-    fn points(center: Point, size: f32) -> [Point; 12] {
-        let mut points: [Point; 12] = Default::default();
+    fn corners(center: Point, size: f32) -> [Point; 6] {
+        let mut corners: [Point; 6] = Default::default();
         for i in 0..6 {
-            points[2 * i] = flat_hex_corner(center, size, i);
+            corners[i] = flat_hex_corner(center, size, i);
         }
-        for i in 0..6 {
-            points[2 * i + 1] = points[2 * i].midpoint(&points[2 * (i + 1) % 12]);
-        }
-        points
+        corners
     }
 
-    fn lines() -> [u32; 24] {
-        [
-            0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 0,
-        ]
+    fn midpoints(corners: &[Point; 6]) -> [Point; 12] {
+        let mut midpoints: [Point; 12] = Default::default();
+        for i in 0..6 {
+            midpoints[2 * i] = corners[i].midpoint(&corners[(i + 1) % corners.len()]);
+            midpoints[2 * i + 1] = corners[i].midpoint(&corners[(i + 1) % corners.len()]);
+        }
+        midpoints
     }
 
     fn new(center: Point, size: f32) -> Hexagon {
+        let corners = Self::corners(center, size);
+        let midpoints = Self::midpoints(&corners);
         Hexagon {
-            center: Center {
-                center: [center.x, center.y],
-            },
-            points: Self::points(center, size),
-            kinds: [
-                CORNER, MID, CORNER, MID, CORNER, MID, CORNER, MID, CORNER, MID, CORNER, MID,
-            ],
-            lines: Self::lines(),
+            center,
+            corners,
+            midpoints,
+        }
+    }
+
+    fn add_to_mesh(
+        self,
+        points: &mut Vec<Point>,
+        lines: &mut Vec<u32>,
+        kinds: &mut Vec<Kind>,
+        attractors: &mut Vec<Attractor>,
+    ) {
+        points.push(self.center);
+        // These two are unused for the center point, since it doesn't show up
+        // in any lines. However, to avoid offset errors, there must be
+        // something here to avoid offset errors in the parallel vecs.
+        attractors.push(self.center.into());
+        kinds.push(CORNER);
+
+        let corners_idx = points.len();
+        points.extend(self.corners.iter().cloned());
+        kinds.extend(iter::repeat(CORNER).take(self.corners.len()));
+        attractors.extend(iter::repeat::<Attractor>(self.center.into()).take(self.corners.len()));
+
+        let midpoints_idx = points.len();
+        points.extend(self.midpoints.iter().cloned());
+        kinds.extend(iter::repeat(MID).take(self.midpoints.len()));
+        for i in 0..6 {
+            attractors.push(self.corners[i].into());
+            attractors.push(self.corners[(i + 1) % self.corners.len()].into());
+
+            // Corner to first midpoint.
+            lines.push((corners_idx + i) as u32);
+            lines.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u32);
+
+            // Other corner to second midpoint.
+            lines.push((corners_idx + (i + 1) % self.corners.len()) as u32);
+            lines.push((midpoints_idx + (i * 2)) as u32);
         }
     }
 }
@@ -121,9 +161,10 @@ fn hexagons(rows: usize, columns: usize, size: f32) -> impl Iterator<Item = Hexa
 fn draw(
     display: &glium::Display,
     program: &glium::program::Program,
+    a: f32,
     b: f32,
     points_vb: &glium::VertexBuffer<Point>,
-    centers_vb: &glium::VertexBuffer<Center>,
+    attractors_vb: &glium::VertexBuffer<Attractor>,
     kinds_vb: &glium::VertexBuffer<Kind>,
     index_buffer: &glium::IndexBuffer<u32>,
 ) -> Result<(), glium::SwapBuffersError> {
@@ -132,10 +173,11 @@ fn draw(
 
     target
         .draw(
-            (points_vb, centers_vb, kinds_vb),
+            (points_vb, attractors_vb, kinds_vb),
             index_buffer,
             program,
             &uniform! {
+                a: 0.0f32,
                 b: 0.0f32,
                 color: [0.3, 0.3, 0.3f32],
             },
@@ -145,10 +187,11 @@ fn draw(
 
     target
         .draw(
-            (points_vb, centers_vb, kinds_vb),
+            (points_vb, attractors_vb, kinds_vb),
             index_buffer,
             program,
             &uniform! {
+                a: a,
                 b: b,
                 color: [1.0, 1.0, 1.0f32],
             },
@@ -168,25 +211,21 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop)?;
 
-    let rows = 10;
-    let cols = 10;
+    let rows = 5;
+    let cols = 5;
 
     let size = (1.0 - -1.0) / ((cols - 1) as f32 * 1.5);
 
-    let (points, lines, centers, kinds): (Vec<Point>, Vec<u32>, Vec<Center>, Vec<Kind>) =
+    let (points, lines, attractors, kinds): (Vec<Point>, Vec<u32>, Vec<Attractor>, Vec<Kind>) =
         hexagons(rows, cols, size)
-            .enumerate()
-            .map(|(i, mut hex)| {
-                let offset = i * hex.points.len();
-                for idx in hex.lines.iter_mut() {
-                    *idx += offset as u32;
-                }
-                hex
-            })
             .map(|mut hex| {
-                hex.center.center[0] -= 1.0;
-                hex.center.center[1] -= 1.0;
-                for p in &mut hex.points {
+                hex.center.x -= 1.0;
+                hex.center.y -= 1.0;
+                for p in &mut hex.corners {
+                    p.x -= 1.0;
+                    p.y -= 1.0;
+                }
+                for p in &mut hex.midpoints {
                     p.x -= 1.0;
                     p.y -= 1.0;
                 }
@@ -194,17 +233,15 @@ fn main() -> Result<(), Box<std::error::Error>> {
             })
             .fold(
                 (vec![], vec![], vec![], vec![]),
-                |(mut points, mut lines, mut centers, mut kinds), hex| {
-                    points.extend(hex.points.iter().cloned());
-                    lines.extend(hex.lines.iter().cloned());
-                    centers.extend(iter::repeat(hex.center).take(hex.points.len()));
-                    kinds.extend(hex.kinds.iter().cloned());
-                    (points, lines, centers, kinds)
+                |(mut points, mut lines, mut attractors, mut kinds), hex| {
+                    hex.add_to_mesh(&mut points, &mut lines, &mut kinds, &mut attractors);
+
+                    (points, lines, attractors, kinds)
                 },
             );
 
     let points_vb = glium::VertexBuffer::new(&display, &points)?;
-    let centers_vb = glium::VertexBuffer::new(&display, &centers)?;
+    let attractors_vb = glium::VertexBuffer::new(&display, &attractors)?;
     let kinds_vb = glium::VertexBuffer::new(&display, &kinds)?;
     let index_buffer = glium::IndexBuffer::new(&display, PrimitiveType::LinesList, &lines)?;
 
@@ -217,19 +254,24 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 in float x;
                 in float y;
 
-                in vec2 center;
+                in vec2 attractor;
                 in uint kind;
 
+                uniform float a;
                 uniform float b;
 
                 void main() {
+                    // multipier = kind == 0 ? b : a;
+                    float multiplier = 0.0;
                     if (kind == uint(0)) {
-                        vec2 p = vec2(x, y);
-                        vec2 v = center - p;
-                        gl_Position = vec4(p + b * v, 0.0, 1.0);
+                        multiplier = b;
                     } else {
-                        gl_Position = vec4(x, y, 0.0, 1.0);
+                        multiplier = a;
                     }
+
+                    vec2 p = vec2(x, y);
+                    vec2 v = attractor - p;
+                    gl_Position = vec4(p + multiplier * v, 0.0, 1.0);
                 }
             ",
 
@@ -247,14 +289,16 @@ fn main() -> Result<(), Box<std::error::Error>> {
         },
     )?;
 
+    let mut a: f32 = 0.1;
     let mut b: f32 = 0.6;
 
     draw(
         &display,
         &program,
+        a,
         b,
         &points_vb,
-        &centers_vb,
+        &attractors_vb,
         &kinds_vb,
         &index_buffer,
     )?;
@@ -278,6 +322,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
                     need_draw = true;
                 }
                 glutin::WindowEvent::CursorMoved { position, .. } => {
+                    a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
                     b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
                     need_draw = true;
                 }
@@ -289,9 +334,10 @@ fn main() -> Result<(), Box<std::error::Error>> {
             draw(
                 &display,
                 &program,
+                a,
                 b,
                 &points_vb,
-                &centers_vb,
+                &attractors_vb,
                 &kinds_vb,
                 &index_buffer,
             ).unwrap()
