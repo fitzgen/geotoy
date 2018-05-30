@@ -3,5 +3,26 @@ name = "geotoy"
 version = "0.1.0"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 
+[[bin]]
+name = "geotoy"
+path = "src/main.rs"
+required-features = ["glium"]
+
 [dependencies]
-glium = "0.21"
+glium = { version = "0.21", optional = true }
+
+[features]
+default-features = ["glium"]
+
+[workspace]
+members = [".", "wasm"]
+
+[profile.release]
+# Enable this option for better time and size profiling.
+# debug = true
+
+# Optimize for small code size, rather than speed.
+opt-level = "s"
+
+# Always enable link-time optimizations to shrink binary sizes.
+lto = true
