@@ -190,21 +190,23 @@ fn hexagons(rows: usize, columns: usize, size: f32) -> impl Iterator<Item = Hexa
         .map(move |center| Hexagon::new(center, size))
 }
 
-fn draw(
-    display: &glium::Display,
-    lines_program: &glium::program::Program,
-    triangles_program: &glium::program::Program,
+struct DrawContext<'a> {
+    display: &'a glium::Display,
+    lines_program: &'a glium::program::Program,
+    triangles_program: &'a glium::program::Program,
     a: f32,
     b: f32,
     draw_grid: bool,
     draw_triangles: bool,
-    points_vb: &glium::VertexBuffer<Point>,
-    attractors_vb: &glium::VertexBuffer<Attractor>,
-    kinds_vb: &glium::VertexBuffer<Kind>,
-    lines_ib: &glium::IndexBuffer<u32>,
-    triangles_ib: &glium::IndexBuffer<u32>,
-) -> Result<(), glium::SwapBuffersError> {
-    let mut target = display.draw();
+    points_vb: &'a glium::VertexBuffer<Point>,
+    attractors_vb: &'a glium::VertexBuffer<Attractor>,
+    kinds_vb: &'a glium::VertexBuffer<Kind>,
+    lines_ib: &'a glium::IndexBuffer<u32>,
+    triangles_ib: &'a glium::IndexBuffer<u32>,
+}
+
+fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
+    let mut target = ctx.display.draw();
     target.clear_color(0.0, 0.0, 0.0, 0.0);
 
     let params =
@@ -220,12 +222,12 @@ fn draw(
         };
 
 
-    if draw_grid {
+    if ctx.draw_grid {
         target
             .draw(
-                (points_vb, attractors_vb, kinds_vb),
-                lines_ib,
-                lines_program,
+                (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+                ctx.lines_ib,
+                ctx.lines_program,
                 &uniform! {
                     a: 0.0f32,
                     b: 0.0f32,
@@ -236,15 +238,15 @@ fn draw(
             .unwrap();
     }
 
-    if draw_triangles {
+    if ctx.draw_triangles {
         target
             .draw(
-                (points_vb, attractors_vb, kinds_vb),
-                triangles_ib,
-                triangles_program,
+                (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+                ctx.triangles_ib,
+                ctx.triangles_program,
                 &uniform! {
-                    a: a,
-                    b: b,
+                    a: ctx.a,
+                    b: ctx.b,
                     color: [1.0, 1.0, 1.0f32],
                 },
                 params,
@@ -254,12 +256,12 @@ fn draw(
 
     target
         .draw(
-            (points_vb, attractors_vb, kinds_vb),
-            lines_ib,
-            lines_program,
+            (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+            ctx.lines_ib,
+            ctx.lines_program,
             &uniform! {
-                a: a,
-                b: b,
+                a: ctx.a,
+                b: ctx.b,
                 color: [1.0, 1.0, 1.0f32],
             },
             params,
@@ -327,25 +329,22 @@ fn main() -> Result<(), Box<std::error::Error>> {
         },
     )?;
 
-    let mut a: f32 = 0.1;
-    let mut b: f32 = 0.6;
-    let mut draw_grid = true;
-    let mut draw_triangles = true;
+    let mut draw_context = DrawContext {
+        display:           &display,
+        lines_program:     &lines_program,
+        triangles_program: &triangles_program,
+        a:                 0.1,
+        b:                 0.6,
+        draw_grid:         true,
+        draw_triangles:    true,
+        points_vb:         &points_vb,
+        attractors_vb:     &attractors_vb,
+        kinds_vb:          &kinds_vb,
+        lines_ib:          &lines_ib,
+        triangles_ib:      &triangles_ib,
+    };
 
-    draw(
-        &display,
-        &lines_program,
-        &triangles_program,
-        a,
-        b,
-        draw_grid,
-        draw_triangles,
-        &points_vb,
-        &attractors_vb,
-        &kinds_vb,
-        &lines_ib,
-        &triangles_ib,
-    )?;
+    draw(&draw_context)?;
 
     loop {
         let mut should_quit = false;
@@ -360,11 +359,11 @@ fn main() -> Result<(), Box<std::error::Error>> {
                             match keycode {
                                 VirtualKeyCode::Escape => should_quit = true,
                                 VirtualKeyCode::G => {
-                                    draw_grid = !draw_grid;
+                                    draw_context.draw_grid = !draw_context.draw_grid;
                                     need_draw = true;
                                 }
                                 VirtualKeyCode::T => {
-                                    draw_triangles = !draw_triangles;
+                                    draw_context.draw_triangles = !draw_context.draw_triangles;
                                     need_draw = true;
                                 }
                                 _ => {},
@@ -378,8 +377,8 @@ fn main() -> Result<(), Box<std::error::Error>> {
                         need_draw = true;
                     }
                     glutin::WindowEvent::CursorMoved { position, .. } => {
-                        a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
-                        b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
+                        draw_context.a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
+                        draw_context.b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
                         need_draw = true;
                     }
                     _ => (),
@@ -393,20 +392,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         }
 
         if need_draw {
-            draw(
-                &display,
-                &lines_program,
-                &triangles_program,
-                a,
-                b,
-                draw_grid,
-                draw_triangles,
-                &points_vb,
-                &attractors_vb,
-                &kinds_vb,
-                &lines_ib,
-                &triangles_ib,
-            ).unwrap()
+            draw(&draw_context)?;
         }
     }
 }
