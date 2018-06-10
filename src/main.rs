@@ -3,6 +3,10 @@ extern crate glium;
 
 use glium::index::PrimitiveType;
 use glium::{
+    Blend,
+    BlendingFunction,
+    DrawParameters,
+    LinearBlendingFactor,
     glutin::{self, VirtualKeyCode}, Surface,
 };
 
@@ -84,8 +88,12 @@ struct Hexagon {
     midpoints: [Point; 12],
 }
 
-const CORNER: Kind = Kind { kind: 0 };
+/// A corner point that's pulled by the center attractor into the inside of the tile
+const INTERNAL: Kind = Kind { kind: 0 };
+/// The midpoint of the hexagon edge, possibly pulled by the corner attractor
 const MID: Kind = Kind { kind: 1 };
+/// A fixed corner on the hexagon (ignored attractor)
+const CORNER: Kind = Kind { kind: 2 };
 
 impl Hexagon {
     fn corners(center: Point, size: f32) -> [Point; 6] {
@@ -119,6 +127,7 @@ impl Hexagon {
         self,
         points: &mut Vec<Point>,
         lines: &mut Vec<u32>,
+        triangles: &mut Vec<u32>,
         kinds: &mut Vec<Kind>,
         attractors: &mut Vec<Attractor>,
     ) {
@@ -127,27 +136,50 @@ impl Hexagon {
         // in any lines. However, to avoid offset errors, there must be
         // something here to avoid offset errors in the parallel vecs.
         attractors.push(self.center.into());
-        kinds.push(CORNER);
+        kinds.push(INTERNAL);
 
-        let corners_idx = points.len();
+        let internals_idx = points.len();
         points.extend(self.corners.iter().cloned());
-        kinds.extend(iter::repeat(CORNER).take(self.corners.len()));
+        kinds.extend(iter::repeat(INTERNAL).take(self.corners.len()));
         attractors.extend(iter::repeat::<Attractor>(self.center.into()).take(self.corners.len()));
+        assert_eq!(points.len(), kinds.len());
+        assert_eq!(points.len(), attractors.len());
 
         let midpoints_idx = points.len();
         points.extend(self.midpoints.iter().cloned());
         kinds.extend(iter::repeat(MID).take(self.midpoints.len()));
-        for i in 0..6 {
+        for i in 0..(self.midpoints.len() / 2) {
             attractors.push(self.corners[i].into());
             attractors.push(self.corners[(i + 1) % self.corners.len()].into());
+        }
+        assert_eq!(points.len(), kinds.len());
+        assert_eq!(points.len(), attractors.len());
 
-            // Corner to first midpoint.
-            lines.push((corners_idx + i) as u32);
+        let corners_idx = points.len();
+        points.extend(self.corners.iter().cloned());
+        kinds.extend(iter::repeat(CORNER).take(self.corners.len()));
+        attractors.extend(iter::repeat::<Attractor>(self.center.into()).take(self.corners.len())); // ignored
+        assert_eq!(points.len(), kinds.len());
+        assert_eq!(points.len(), attractors.len());
+
+        for i in 0..6 {
+            // Internal to first midpoint.
+            lines.push((internals_idx + i) as u32);
             lines.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u32);
 
-            // Other corner to second midpoint.
-            lines.push((corners_idx + (i + 1) % self.corners.len()) as u32);
+            // Other internal to second midpoint.
+            lines.push((internals_idx + (i + 1) % self.corners.len()) as u32);
             lines.push((midpoints_idx + (i * 2)) as u32);
+
+            // Internal-midpoint-corner
+            triangles.push((internals_idx + i) as u32);
+            triangles.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u32);
+            triangles.push((corners_idx + i) as u32);
+
+            // Internal-second midpoint-second corner
+            triangles.push((internals_idx + (i + 1) % self.corners.len()) as u32);
+            triangles.push((midpoints_idx + (i * 2)) as u32);
+            triangles.push((corners_idx + (i + 1) % self.corners.len()) as u32);
         }
     }
 }
@@ -160,30 +192,62 @@ fn hexagons(rows: usize, columns: usize, size: f32) -> impl Iterator<Item = Hexa
 
 fn draw(
     display: &glium::Display,
-    program: &glium::program::Program,
+    lines_program: &glium::program::Program,
+    triangles_program: &glium::program::Program,
     a: f32,
     b: f32,
     draw_grid: bool,
+    draw_triangles: bool,
     points_vb: &glium::VertexBuffer<Point>,
     attractors_vb: &glium::VertexBuffer<Attractor>,
     kinds_vb: &glium::VertexBuffer<Kind>,
-    index_buffer: &glium::IndexBuffer<u32>,
+    lines_ib: &glium::IndexBuffer<u32>,
+    triangles_ib: &glium::IndexBuffer<u32>,
 ) -> Result<(), glium::SwapBuffersError> {
     let mut target = display.draw();
     target.clear_color(0.0, 0.0, 0.0, 0.0);
+
+    let params =
+        &DrawParameters {
+            blend: Blend {
+                color: BlendingFunction::Addition {
+                    source: LinearBlendingFactor::SourceColor,
+                    destination: LinearBlendingFactor::OneMinusSourceColor,
+                },
+                .. Default::default()
+            },
+            .. Default::default()
+        };
+
 
     if draw_grid {
         target
             .draw(
                 (points_vb, attractors_vb, kinds_vb),
-                index_buffer,
-                program,
+                lines_ib,
+                lines_program,
                 &uniform! {
                     a: 0.0f32,
                     b: 0.0f32,
                     color: [0.3, 0.3, 0.3f32],
                 },
-                &Default::default(),
+                params,
+            )
+            .unwrap();
+    }
+
+    if draw_triangles {
+        target
+            .draw(
+                (points_vb, attractors_vb, kinds_vb),
+                triangles_ib,
+                triangles_program,
+                &uniform! {
+                    a: a,
+                    b: b,
+                    color: [1.0, 1.0, 1.0f32],
+                },
+                params,
             )
             .unwrap();
     }
@@ -191,14 +255,14 @@ fn draw(
     target
         .draw(
             (points_vb, attractors_vb, kinds_vb),
-            index_buffer,
-            program,
+            lines_ib,
+            lines_program,
             &uniform! {
                 a: a,
                 b: b,
                 color: [1.0, 1.0, 1.0f32],
             },
-            &Default::default(),
+            params,
         )
         .unwrap();
 
@@ -206,8 +270,8 @@ fn draw(
 }
 
 fn main() -> Result<(), Box<std::error::Error>> {
-    let mut width = 2048;
-    let mut height = 2048;
+    let mut width = 800;
+    let mut height = 800;
 
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new().with_dimensions(width, height);
@@ -219,7 +283,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     let size = (1.0 - -1.0) / ((cols - 1) as f32 * 1.5);
 
-    let (points, lines, attractors, kinds): (Vec<Point>, Vec<u32>, Vec<Attractor>, Vec<Kind>) =
+    let (points, lines, triangles, attractors, kinds): (Vec<Point>, Vec<u32>, Vec<u32>, Vec<Attractor>, Vec<Kind>) =
         hexagons(rows, cols, size)
             .map(|mut hex| {
                 hex.center.x -= 1.0;
@@ -235,70 +299,52 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 hex
             })
             .fold(
-                (vec![], vec![], vec![], vec![]),
-                |(mut points, mut lines, mut attractors, mut kinds), hex| {
-                    hex.add_to_mesh(&mut points, &mut lines, &mut kinds, &mut attractors);
+                (vec![], vec![], vec![], vec![], vec![]),
+                |(mut points, mut lines, mut triangles, mut attractors, mut kinds), hex| {
+                    hex.add_to_mesh(&mut points, &mut lines, &mut triangles, &mut kinds, &mut attractors);
 
-                    (points, lines, attractors, kinds)
+                    (points, lines, triangles, attractors, kinds)
                 },
             );
 
     let points_vb = glium::VertexBuffer::new(&display, &points)?;
     let attractors_vb = glium::VertexBuffer::new(&display, &attractors)?;
     let kinds_vb = glium::VertexBuffer::new(&display, &kinds)?;
-    let index_buffer = glium::IndexBuffer::new(&display, PrimitiveType::LinesList, &lines)?;
+    let lines_ib = glium::IndexBuffer::new(&display, PrimitiveType::LinesList, &lines)?;
+    let triangles_ib = glium::IndexBuffer::new(&display, PrimitiveType::TrianglesList, &triangles)?;
 
-    let program = program!(&display,
+    let lines_program = program!(&display,
         140 => {
-            vertex: "
-                #version 140
+            vertex: include_str!("star.v.glsl"),
+            fragment: include_str!("lines.f.glsl"),
+        },
+    )?;
 
-                in float x;
-                in float y;
-
-                in vec2 attractor;
-                in uint kind;
-
-                uniform float a;
-                uniform float b;
-
-                void main() {
-                    float multiplier = kind == uint(0) ? b : a;
-
-                    vec2 p = vec2(x, y);
-                    vec2 v = attractor - p;
-                    gl_Position = vec4(p + multiplier * v, 0.0, 1.0);
-                }
-            ",
-
-            fragment: "
-                #version 140
-
-                uniform vec3 color;
-
-                out vec4 f_color;
-
-                void main() {
-                    f_color = vec4(color, 1.0);
-                }
-            "
+    let triangles_program = program!(&display,
+        140 => {
+            vertex: include_str!("star.v.glsl"),
+            fragment: include_str!("triangles.f.glsl"),
         },
     )?;
 
     let mut a: f32 = 0.1;
     let mut b: f32 = 0.6;
     let mut draw_grid = true;
+    let mut draw_triangles = true;
 
     draw(
         &display,
-        &program,
+        &lines_program,
+        &triangles_program,
         a,
         b,
         draw_grid,
+        draw_triangles,
         &points_vb,
         &attractors_vb,
         &kinds_vb,
-        &index_buffer,
+        &lines_ib,
+        &triangles_ib,
     )?;
 
     loop {
@@ -315,6 +361,10 @@ fn main() -> Result<(), Box<std::error::Error>> {
                                 VirtualKeyCode::Escape => should_quit = true,
                                 VirtualKeyCode::G => {
                                     draw_grid = !draw_grid;
+                                    need_draw = true;
+                                }
+                                VirtualKeyCode::T => {
+                                    draw_triangles = !draw_triangles;
                                     need_draw = true;
                                 }
                                 _ => {},
@@ -345,14 +395,17 @@ fn main() -> Result<(), Box<std::error::Error>> {
         if need_draw {
             draw(
                 &display,
-                &program,
+                &lines_program,
+                &triangles_program,
                 a,
                 b,
                 draw_grid,
+                draw_triangles,
                 &points_vb,
                 &attractors_vb,
                 &kinds_vb,
-                &index_buffer,
+                &lines_ib,
+                &triangles_ib,
             ).unwrap()
         }
     }
