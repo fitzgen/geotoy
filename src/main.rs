@@ -198,6 +198,7 @@ struct DrawContext<'a> {
     b: f32,
     draw_grid: bool,
     draw_triangles: bool,
+    draw_lines: bool,
     points_vb: &'a glium::VertexBuffer<Point>,
     attractors_vb: &'a glium::VertexBuffer<Attractor>,
     kinds_vb: &'a glium::VertexBuffer<Kind>,
@@ -254,19 +255,21 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
             .unwrap();
     }
 
-    target
-        .draw(
-            (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-            ctx.lines_ib,
-            ctx.lines_program,
-            &uniform! {
-                a: ctx.a,
-                b: ctx.b,
-                color: [1.0, 1.0, 1.0f32],
-            },
-            params,
-        )
-        .unwrap();
+    if ctx.draw_lines {
+        target
+            .draw(
+                (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+                ctx.lines_ib,
+                ctx.lines_program,
+                &uniform! {
+                    a: ctx.a,
+                    b: ctx.b,
+                    color: [1.0, 1.0, 1.0f32],
+                },
+                params,
+            )
+            .unwrap();
+    }
 
     target.finish()
 }
@@ -337,6 +340,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         b:                 0.6,
         draw_grid:         true,
         draw_triangles:    true,
+        draw_lines:        true,
         points_vb:         &points_vb,
         attractors_vb:     &attractors_vb,
         kinds_vb:          &kinds_vb,
@@ -364,6 +368,10 @@ fn main() -> Result<(), Box<std::error::Error>> {
                                 }
                                 VirtualKeyCode::T => {
                                     draw_context.draw_triangles = !draw_context.draw_triangles;
+                                    need_draw = true;
+                                }
+                                VirtualKeyCode::L => {
+                                    draw_context.draw_lines = !draw_context.draw_lines;
                                     need_draw = true;
                                 }
                                 _ => {},
