@@ -264,7 +264,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 uniform float b;
 
                 void main() {
-                    float multiplier = kind == uint(0) ? b : a;
+                    float multiplier = kind == uint(0) ? y : x;
 
                     vec2 p = vec2(x, y);
                     vec2 v = attractor - p;
