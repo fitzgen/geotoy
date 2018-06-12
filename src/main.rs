@@ -196,6 +196,7 @@ struct DrawContext<'a> {
     triangles_program: &'a glium::program::Program,
     a: f32,
     b: f32,
+    offset: (f32, f32),
     draw_grid: bool,
     draw_triangles: bool,
     draw_lines: bool,
@@ -204,6 +205,11 @@ struct DrawContext<'a> {
     kinds_vb: &'a glium::VertexBuffer<Kind>,
     lines_ib: &'a glium::IndexBuffer<u32>,
     triangles_ib: &'a glium::IndexBuffer<u32>,
+}
+
+enum CursorPositionFn {
+    Offset,
+    HexParams,
 }
 
 fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
@@ -223,52 +229,59 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
         };
 
 
-    if ctx.draw_grid {
-        target
-            .draw(
-                (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-                ctx.lines_ib,
-                ctx.lines_program,
-                &uniform! {
-                    a: 0.0f32,
-                    b: 0.0f32,
-                    color: [0.3, 0.3, 0.3f32],
-                },
-                params,
-            )
-            .unwrap();
-    }
+    for (offset_x, offset_y) in [(0.0, 0.0), ctx.offset].iter() {
+        let offset = [*offset_x, *offset_y];
 
-    if ctx.draw_triangles {
-        target
-            .draw(
-                (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-                ctx.triangles_ib,
-                ctx.triangles_program,
-                &uniform! {
-                    a: ctx.a,
-                    b: ctx.b,
-                    color: [1.0, 1.0, 1.0f32],
-                },
-                params,
-            )
-            .unwrap();
-    }
+        if ctx.draw_grid {
+            target
+                .draw(
+                    (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+                    ctx.lines_ib,
+                    ctx.lines_program,
+                    &uniform! {
+                        a: 0.0f32,
+                        b: 0.0f32,
+                        offset: offset,
+                        color: [0.3, 0.3, 0.3f32],
+                    },
+                    params,
+                )
+                .unwrap();
+        }
 
-    if ctx.draw_lines {
-        target
-            .draw(
-                (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-                ctx.lines_ib,
-                ctx.lines_program,
-                &uniform! {
-                    a: ctx.a,
-                    b: ctx.b,
-                    color: [1.0, 1.0, 1.0f32],
-                },
-                params,
-            )
-            .unwrap();
+        if ctx.draw_triangles {
+            target
+                .draw(
+                    (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+                    ctx.triangles_ib,
+                    ctx.triangles_program,
+                    &uniform! {
+                        a: ctx.a,
+                        b: ctx.b,
+                        offset: offset,
+                        color: [1.0, 1.0, 1.0f32],
+                    },
+                    params,
+                )
+                .unwrap();
+        }
+
+        if ctx.draw_lines {
+            target
+                .draw(
+                    (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
+                    ctx.lines_ib,
+                    ctx.lines_program,
+                    &uniform! {
+                        a: ctx.a,
+                        b: ctx.b,
+                        offset: offset,
+                        color: [1.0, 1.0, 1.0f32],
+                    },
+                    params,
+                )
+                .unwrap();
+        }
     }
 
     target.finish()
@@ -338,6 +351,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         triangles_program: &triangles_program,
         a:                 0.1,
         b:                 0.6,
+        offset:            (0.0, 0.0),
         draw_grid:         true,
         draw_triangles:    true,
         draw_lines:        true,
@@ -347,6 +361,8 @@ fn main() -> Result<(), Box<std::error::Error>> {
         lines_ib:          &lines_ib,
         triangles_ib:      &triangles_ib,
     };
+
+    let mut cursor_position_fn = CursorPositionFn::HexParams;
 
     draw(&draw_context)?;
 
@@ -374,6 +390,12 @@ fn main() -> Result<(), Box<std::error::Error>> {
                                     draw_context.draw_lines = !draw_context.draw_lines;
                                     need_draw = true;
                                 }
+                                VirtualKeyCode::O => {
+                                    cursor_position_fn = match cursor_position_fn {
+                                        CursorPositionFn::HexParams => CursorPositionFn::Offset,
+                                        CursorPositionFn::Offset    => CursorPositionFn::HexParams,
+                                    };
+                                }
                                 _ => {},
                             }
                         }
@@ -385,8 +407,16 @@ fn main() -> Result<(), Box<std::error::Error>> {
                         need_draw = true;
                     }
                     glutin::WindowEvent::CursorMoved { position, .. } => {
-                        draw_context.a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
-                        draw_context.b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
+                        match cursor_position_fn {
+                            CursorPositionFn::HexParams => {
+                                draw_context.a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
+                                draw_context.b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
+                            }
+                            CursorPositionFn::Offset => {
+                                draw_context.offset.0 = (position.0 as f32) / (width  as f32) - 0.5;
+                                draw_context.offset.1 = -((position.1 as f32) / (height as f32) - 0.5);
+                            }
+                        }
                         need_draw = true;
                     }
                     _ => (),
