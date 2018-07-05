@@ -117,7 +117,7 @@ impl Hexagon {
     fn add_to_mesh(
         self,
         points: &mut Vec<Point>,
-        lines: &mut Vec<u32>,
+        lines: &mut Vec<u16>,
         kinds: &mut Vec<Kind>,
         attractors: &mut Vec<Attractor>,
     ) {
@@ -141,12 +141,12 @@ impl Hexagon {
             attractors.push(self.corners[(i + 1) % self.corners.len()].into());
 
             // Corner to first midpoint.
-            lines.push((corners_idx + i) as u32);
-            lines.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u32);
+            lines.push((corners_idx + i) as u16);
+            lines.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u16);
 
             // Other corner to second midpoint.
-            lines.push((corners_idx + (i + 1) % self.corners.len()) as u32);
-            lines.push((midpoints_idx + (i * 2)) as u32);
+            lines.push((corners_idx + (i + 1) % self.corners.len()) as u16);
+            lines.push((midpoints_idx + (i * 2)) as u16);
         }
     }
 }
@@ -157,7 +157,7 @@ pub fn hexagons(rows: usize, columns: usize, size: f32) -> impl Iterator<Item = 
         .map(move |center| Hexagon::new(center, size))
 }
 
-pub fn mesh(rows: usize, columns: usize, size: f32) -> (Vec<Point>, Vec<u32>, Vec<Attractor>, Vec<Kind>) {
+pub fn mesh(rows: usize, columns: usize, size: f32) -> (Vec<Point>, Vec<u16>, Vec<Attractor>, Vec<Kind>) {
     hexagons(rows, columns, size)
         .map(|mut hex| {
             hex.center.x -= 1.0;
@@ -214,3 +214,18 @@ pub const FRAGMENT_SHADER: &str = "
                     f_color = vec4(color, 1.0);
                 }
 ";
+
+pub const VERTEX_SHADER_WEB: &str = "
+                attribute vec2 position;
+
+                void main() {
+                    gl_Position = vec4(position, 0.0, 1.0);
+                }
+";
+
+pub const FRAGMENT_SHADER_WEB: &str = "
+                void main() {
+                    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+                }
+";
+

@@ -17,7 +17,7 @@ fn draw(
     points_vb: &glium::VertexBuffer<Point>,
     attractors_vb: &glium::VertexBuffer<Attractor>,
     kinds_vb: &glium::VertexBuffer<Kind>,
-    index_buffer: &glium::IndexBuffer<u32>,
+    index_buffer: &glium::IndexBuffer<u16>,
 ) -> Result<(), glium::SwapBuffersError> {
     let mut target = display.draw();
     target.clear_color(0.0, 0.0, 0.0, 0.0);

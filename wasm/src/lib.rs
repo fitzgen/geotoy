@@ -38,7 +38,7 @@ use std::cell::RefCell;
 use std::mem;
 
 thread_local! {
-    static MESH: RefCell<Option<(Vec<Point>, Vec<u32>, Vec<Attractor>, Vec<Kind>)>> =
+    static MESH: RefCell<Option<(Vec<Point>, Vec<u16>, Vec<Attractor>, Vec<Kind>)>> =
         RefCell::new(None);
 }
 
@@ -70,11 +70,11 @@ pub fn lines_len() -> usize {
 
 #[wasm_bindgen]
 pub fn size_of_line() -> usize {
-    mem::size_of::<u32>()
+    mem::size_of::<u16>()
 }
 
 #[wasm_bindgen]
-pub fn lines() -> *const u32 {
+pub fn lines() -> *const u16 {
     MESH.with(|mesh| mesh.borrow().as_ref().unwrap().1.as_ptr())
 }
 
@@ -109,12 +109,12 @@ pub fn kinds() -> *const Kind {
 
 #[wasm_bindgen]
 pub fn vertex_shader() -> String {
-    geotoy::VERTEX_SHADER.into()
+    geotoy::VERTEX_SHADER_WEB.into()
 }
 
 #[wasm_bindgen]
 pub fn fragment_shader() -> String {
-    geotoy::FRAGMENT_SHADER.into()
+    geotoy::FRAGMENT_SHADER_WEB.into()
 }
 
 // #[wasm_bindgen(module = "./gl.js")]
