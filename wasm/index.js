@@ -24,6 +24,9 @@ let size = 0;
 let rows = 0;
 let columns = 0;
 
+let a = 0.2;
+let b = 0.6;
+
 const onResize = () => {
   //size = Math.ceil(Math.min(canvas.width, canvas.height) / 5);
   //rows = Math.ceil(canvas.height / size);
@@ -37,6 +40,15 @@ const onResize = () => {
   scheduleDraw();
 };
 window.addEventListener("resize", onResize);
+
+const onMouseMove = (ev) => {
+  const bounds = ev.target.getBoundingClientRect();
+  a = (ev.clientX - bounds.left) / bounds.width;
+  b = (ev.clientY - bounds.top)  / bounds.height;
+
+  scheduleDraw();
+};
+canvas.addEventListener("mousemove", onMouseMove);
 
 let pointsBuffer = null;
 let attractorsBuffer = null;
@@ -105,8 +117,8 @@ const scheduleDraw = () => {
     gl.enableVertexAttribArray(kindLoc);
 
     // = Set uniforms =
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), 0.2);
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), 0.6);
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), a);
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), b);
 
     // = Set index buffer =
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
