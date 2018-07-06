@@ -57,19 +57,21 @@ const createMesh = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
   const attractorsArray = new Float32Array(memory.buffer, attractors(), attractors_len());
   gl.bufferData(gl.ARRAY_BUFFER, attractorsArray, gl.STATIC_DRAW);
-  attractorsArray.itemSize = size_of_attractor();
-  attractorsArray.numItems = attractors_len();
+  attractorsBuffer.itemSize = size_of_attractor();
+  attractorsBuffer.numItems = attractors_len();
 
   kindsBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
-  const kindsArray = new Uint32Array(memory.buffer, kinds(), kinds_len());
-  gl.bufferData(gl.ARRAY_BUFFER, kindsArray, gl.STATIC_DRAW);
-  kindsArray.itemSize = size_of_kind();
-  kindsArray.numItems = kinds_len();
+  const kindsArrayInt = new Uint32Array(memory.buffer, kinds(), kinds_len());
+  // GLSL in WebGL does not support integer attributes
+  const kindsArrayFloat = new Float32Array(kindsArrayInt);
+  gl.bufferData(gl.ARRAY_BUFFER, kindsArrayFloat, gl.STATIC_DRAW);
+  kindsBuffer.itemSize = size_of_kind();
+  kindsBuffer.numItems = kinds_len();
 
   linesBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
-  const linesArray = new Uint16Array(memory.buffer, lines(), lines_len() / 3);
+  const linesArray = new Uint16Array(memory.buffer, lines(), lines_len());
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, linesArray, gl.STATIC_DRAW);
   linesBuffer.itemSize = gl.UNSIGNED_SHORT; // u16
   linesBuffer.numItems = lines_len() / 3;
@@ -83,24 +85,45 @@ const scheduleDraw = () => {
   animationId = requestAnimationFrame(() => {
     animationId = null;
 
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
-    var positionLoc = gl.getAttribLocation(shaderProgram, "position");
-
-    var numComponents = 2;  // (x, y)
+    // Properties for arrays; all tightly packed floats
     var type = gl.FLOAT;    // 32bit floating point values
     var normalize = false;  // leave the values as they are
     var offset = 0;         // start at the beginning of the buffer
     var stride = 0;         // how many bytes to move to the next vertex
     // 0 = use the correct stride for type and numComponents
 
+    // = Set position attribute =
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
+    var positionLoc = gl.getAttribLocation(shaderProgram, "position");
+    var numComponents = 2;  // (x, y)
     gl.vertexAttribPointer(positionLoc, numComponents, type, normalize, stride, offset);
     gl.enableVertexAttribArray(positionLoc);
 
+    // = Set attractor attribute =
+    gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
+    var attractorsLoc = gl.getAttribLocation(shaderProgram, "attractor");
+    var numComponents = 2;  // (x, y)
+    gl.vertexAttribPointer(attractorsLoc, numComponents, type, normalize, stride, offset);
+    gl.enableVertexAttribArray(attractorsLoc);
+
+    // = Set kind attribute =
+    gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
+    var kindLoc = gl.getAttribLocation(shaderProgram, "kind");
+    var numComponents = 1;
+    gl.vertexAttribPointer(kindLoc, numComponents, type, normalize, stride, offset);
+    gl.enableVertexAttribArray(kindLoc);
+
+    // = Set uniforms =
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), 0.2);
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), 0.6);
+
+    // = Set index buffer =
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
+
+    // = Draw =
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
   });

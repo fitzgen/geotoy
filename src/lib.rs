@@ -217,9 +217,17 @@ pub const FRAGMENT_SHADER: &str = "
 
 pub const VERTEX_SHADER_WEB: &str = "
                 attribute vec2 position;
+                attribute vec2 attractor;
+                attribute float kind;
+                uniform float a;
+                uniform float b;
 
                 void main() {
-                    gl_Position = vec4(position, 0.0, 1.0);
+                    float multiplier = kind < 0.5 ? b : a;
+
+                    vec2 p = position;
+                    vec2 v = attractor - p;
+                    gl_Position = vec4(p + multiplier * v, 0.0, 1.0);
                 }
 ";
 
