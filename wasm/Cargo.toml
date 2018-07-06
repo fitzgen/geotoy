@@ -1,5 +1,5 @@
 [package]
-authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
+authors = ["Nick Fitzgerald <fitzgen@gmail.com>", "Johannes Hoff <johshoff@gmail.com>"]
 categories = ["wasm"]
 description = "My super awesome Rust and WebAssembly project!"
 license = "Apache-2.0/MIT"
