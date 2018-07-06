@@ -2,16 +2,16 @@ import { memory } from "./geotoy_wasm_bg";
 import {
   create_mesh,
   points_len,
-  size_of_point,
+  point_dim,
   points,
   lines_len,
-  size_of_line,
+  line_dim,
   lines,
   attractors_len,
-  size_of_attractor,
+  attractor_dim,
   attractors,
   kinds_len,
-  size_of_kind,
+  kind_dim,
   kinds,
   vertex_shader,
   fragment_shader
@@ -48,33 +48,27 @@ const createMesh = () => {
 
   pointsBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
-  const pointsArray = new Float32Array(memory.buffer, points(), points_len());
+  const pointsArray = new Float32Array(memory.buffer, points(), points_len() * point_dim());
   gl.bufferData(gl.ARRAY_BUFFER, pointsArray, gl.STATIC_DRAW);
-  pointsBuffer.itemSize = size_of_point();
-  pointsBuffer.numItems = points_len();
 
   attractorsBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
-  const attractorsArray = new Float32Array(memory.buffer, attractors(), attractors_len());
+  const attractorsArray = new Float32Array(memory.buffer, attractors(), attractors_len() * attractor_dim());
   gl.bufferData(gl.ARRAY_BUFFER, attractorsArray, gl.STATIC_DRAW);
-  attractorsBuffer.itemSize = size_of_attractor();
-  attractorsBuffer.numItems = attractors_len();
 
   kindsBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
-  const kindsArrayInt = new Uint32Array(memory.buffer, kinds(), kinds_len());
+  const kindsArrayInt = new Uint32Array(memory.buffer, kinds(), kinds_len() * kind_dim());
   // GLSL in WebGL does not support integer attributes
   const kindsArrayFloat = new Float32Array(kindsArrayInt);
   gl.bufferData(gl.ARRAY_BUFFER, kindsArrayFloat, gl.STATIC_DRAW);
-  kindsBuffer.itemSize = size_of_kind();
-  kindsBuffer.numItems = kinds_len();
 
   linesBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
-  const linesArray = new Uint16Array(memory.buffer, lines(), lines_len());
+  const linesArray = new Uint16Array(memory.buffer, lines(), lines_len() * line_dim());
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, linesArray, gl.STATIC_DRAW);
   linesBuffer.itemSize = gl.UNSIGNED_SHORT; // u16
-  linesBuffer.numItems = lines_len() / 3;
+  linesBuffer.numItems = lines_len();
 }
 
 let animationId = null;
@@ -90,27 +84,24 @@ const scheduleDraw = () => {
     var normalize = false;  // leave the values as they are
     var offset = 0;         // start at the beginning of the buffer
     var stride = 0;         // how many bytes to move to the next vertex
-    // 0 = use the correct stride for type and numComponents
+    // 0 = use the correct stride for type and vertexAttribPointer's size argument (2nd)
 
     // = Set position attribute =
     gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
     var positionLoc = gl.getAttribLocation(shaderProgram, "position");
-    var numComponents = 2;  // (x, y)
-    gl.vertexAttribPointer(positionLoc, numComponents, type, normalize, stride, offset);
+    gl.vertexAttribPointer(positionLoc, point_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(positionLoc);
 
     // = Set attractor attribute =
     gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
     var attractorsLoc = gl.getAttribLocation(shaderProgram, "attractor");
-    var numComponents = 2;  // (x, y)
-    gl.vertexAttribPointer(attractorsLoc, numComponents, type, normalize, stride, offset);
+    gl.vertexAttribPointer(attractorsLoc, attractor_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(attractorsLoc);
 
     // = Set kind attribute =
     gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
     var kindLoc = gl.getAttribLocation(shaderProgram, "kind");
-    var numComponents = 1;
-    gl.vertexAttribPointer(kindLoc, numComponents, type, normalize, stride, offset);
+    gl.vertexAttribPointer(kindLoc, kind_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(kindLoc);
 
     // = Set uniforms =

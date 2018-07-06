@@ -35,7 +35,6 @@ extern crate geotoy;
 
 use geotoy::{Attractor, Kind, Point};
 use std::cell::RefCell;
-use std::mem;
 
 thread_local! {
     static MESH: RefCell<Option<(Vec<Point>, Vec<u16>, Vec<Attractor>, Vec<Kind>)>> =
@@ -54,8 +53,8 @@ pub fn points_len() -> usize {
 }
 
 #[wasm_bindgen]
-pub fn size_of_point() -> usize {
-    mem::size_of::<Point>()
+pub fn point_dim() -> usize {
+    2
 }
 
 #[wasm_bindgen]
@@ -69,8 +68,8 @@ pub fn lines_len() -> usize {
 }
 
 #[wasm_bindgen]
-pub fn size_of_line() -> usize {
-    mem::size_of::<u16>()
+pub fn line_dim() -> usize {
+    1
 }
 
 #[wasm_bindgen]
@@ -84,8 +83,8 @@ pub fn attractors_len() -> usize {
 }
 
 #[wasm_bindgen]
-pub fn size_of_attractor() -> usize {
-    mem::size_of::<Attractor>()
+pub fn attractor_dim() -> usize {
+    2
 }
 
 #[wasm_bindgen]
@@ -99,8 +98,8 @@ pub fn kinds_len() -> usize {
 }
 
 #[wasm_bindgen]
-pub fn size_of_kind() -> usize {
-    mem::size_of::<Kind>()
+pub fn kind_dim() -> usize {
+    1
 }
 #[wasm_bindgen]
 pub fn kinds() -> *const Kind {
