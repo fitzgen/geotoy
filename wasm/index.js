@@ -91,6 +91,11 @@ const scheduleDraw = () => {
   animationId = requestAnimationFrame(() => {
     animationId = null;
 
+    // = Setup canvas =
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
     // Properties for arrays; all tightly packed floats
     var type = gl.FLOAT;    // 32bit floating point values
     var normalize = false;  // leave the values as they are
@@ -116,17 +121,20 @@ const scheduleDraw = () => {
     gl.vertexAttribPointer(kindLoc, kind_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(kindLoc);
 
-    // = Set uniforms =
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), a);
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), b);
-
     // = Set index buffer =
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
 
-    // = Draw =
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    // = Set uniforms for background grid =
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), 0);
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), 0);
+    gl.uniform3f(gl.getUniformLocation(shaderProgram, "color"), 0.3, 0.3, 0.3);
+
+    gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
+
+    // = Set uniforms for lines =
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), a);
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), b);
+    gl.uniform3f(gl.getUniformLocation(shaderProgram, "color"), 1.0, 1.0, 1.0);
 
     gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
   });
