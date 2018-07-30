@@ -30,13 +30,15 @@ let columns = 0;
 let a = 0.2;
 let b = 0.6;
 
+let index = 51;
+
 const onResize = () => {
   //size = Math.ceil(Math.min(canvas.width, canvas.height) / 5);
   //rows = Math.ceil(canvas.height / size);
   //columns = Math.ceil(canvas.width / size);
 
-  rows = 5;
-  columns = 5;
+  rows = 3;
+  columns = 3;
   size = (1.0 - -1.0) / ((columns - 1) * 1.5);
 
   createMesh();
@@ -52,6 +54,17 @@ const onMouseMove = (ev) => {
   scheduleDraw();
 };
 canvas.addEventListener("mousemove", onMouseMove);
+
+window.addEventListener("keypress", (ev) => {
+    const key = ev.key;
+    if (key == '+') {
+      index++;
+      scheduleDraw();
+    } else if (key == '-') {
+      index--;
+      scheduleDraw();
+    }
+});
 
 let pointsBuffer = null;
 let attractorsBuffer = null;
@@ -185,7 +198,19 @@ const scheduleDraw = () => {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
 
-    gl.drawElements(gl.TRIANGLES, trianglesBuffer.numItems, trianglesBuffer.itemSize, 0);
+    const pointsArray = new Float32Array(memory.buffer, points(), points_len() * point_dim());
+    const attractorsArray = new Float32Array(memory.buffer, attractors(), attractors_len() * attractor_dim());
+    const kindsArrayInt = new Uint32Array(memory.buffer, kinds(), kinds_len() * kind_dim());
+    const kindsArrayFloat = new Float32Array(kindsArrayInt);
+    const linesArray = new Uint16Array(memory.buffer, lines(), lines_len() * line_dim());
+    const trianglesArray = new Uint16Array(memory.buffer, triangles(), triangles_len() * triangle_dim());
+
+    console.log('Triangle index:', index);
+    for (var i = 0; i < 3; i++) {
+        var j = trianglesArray[index + i];
+        console.log('Point index:', j, pointsArray[j], attractorsArray[j], kindsArrayInt[j]);
+    }
+    gl.drawElements(gl.TRIANGLES, 3, trianglesBuffer.itemSize, index * 6);
   });
 };
 
