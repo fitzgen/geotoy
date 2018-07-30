@@ -34,6 +34,8 @@ const onResize = () => {
   //size = Math.ceil(Math.min(canvas.width, canvas.height) / 5);
   //rows = Math.ceil(canvas.height / size);
   //columns = Math.ceil(canvas.width / size);
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
 
   rows = 5;
   columns = 5;
