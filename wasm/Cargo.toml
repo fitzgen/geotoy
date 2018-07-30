@@ -20,7 +20,7 @@ crate-type = [
 
 [dependencies]
 cfg-if = "0.1.2"
-wasm-bindgen = "0.2.10"
+wasm-bindgen = "0.2.15"
 geotoy = { default-features = false, path = ".." }
 lazy_static = "1.0.1"
 

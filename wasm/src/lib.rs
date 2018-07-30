@@ -1,6 +1,6 @@
 //! My awesome Rust and WebAssembly project!
 
-#![feature(proc_macro, wasm_custom_section, wasm_import_module)]
+#![feature(wasm_custom_section, wasm_import_module, use_extern_macros)]
 #![cfg_attr(feature = "wee_alloc", feature(global_allocator))]
 
 #[macro_use]
