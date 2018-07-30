@@ -22,6 +22,10 @@ function main {
             do_wasm
             ;;
 
+        "update_nightly")
+            do_update_nightly
+            ;;
+
         *)
             echo "Error: unknown \$JOB = $JOB"
             exit 1
@@ -91,14 +95,16 @@ function do_bench {
            cargo +nightly bench
 }
 
-function do_wasm {
+function do_update_nightly {
     header 'Updating rust nightly and installing the `wasm32-unknown-unknown` target.'
 
     logged rustup \
            rustup update nightly
     logged rustup \
            rustup target add wasm32-unknown-unknown --toolchain nightly
+}
 
+function do_wasm {
     header 'Building for `wasm32-unknown-unknown` target.'
     logged cargo \
            cargo +nightly build \

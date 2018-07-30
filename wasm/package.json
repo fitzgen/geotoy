@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "update": "JOB=update_nightly ../ci/script.sh",
     "build": "JOB=wasm ../ci/script.sh && webpack",
     "serve": "webpack-dev-server"
   },
