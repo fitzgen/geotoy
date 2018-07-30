@@ -106,7 +106,8 @@ const scheduleDraw = () => {
     animationId = null;
 
     // = Setup canvas =
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    const maxDim = Math.max(canvas.width, canvas.height);
+    gl.viewport(0, 0, maxDim, maxDim);
     gl.clearColor(0.0, 0.0, 0.0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
