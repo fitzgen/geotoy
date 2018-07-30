@@ -123,7 +123,7 @@ impl Hexagon {
         self,
         points: &mut Vec<Point>,
         lines: &mut Vec<u16>,
-        triangles: &mut Vec<u32>,
+        triangles: &mut Vec<u16>,
         kinds: &mut Vec<Kind>,
         attractors: &mut Vec<Attractor>,
     ) {
@@ -168,14 +168,14 @@ impl Hexagon {
             lines.push((midpoints_idx + (i * 2)) as u16);
 
             // Internal-midpoint-corner
-            triangles.push((internals_idx + i) as u32);
-            triangles.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u32);
-            triangles.push((corners_idx + i) as u32);
+            triangles.push((internals_idx + i) as u16);
+            triangles.push((midpoints_idx + (i * 2 + 1) % self.midpoints.len()) as u16);
+            triangles.push((corners_idx + i) as u16);
 
             // Internal-second midpoint-second corner
-            triangles.push((internals_idx + (i + 1) % self.corners.len()) as u32);
-            triangles.push((midpoints_idx + (i * 2)) as u32);
-            triangles.push((corners_idx + (i + 1) % self.corners.len()) as u32);
+            triangles.push((internals_idx + (i + 1) % self.corners.len()) as u16);
+            triangles.push((midpoints_idx + (i * 2)) as u16);
+            triangles.push((corners_idx + (i + 1) % self.corners.len()) as u16);
         }
     }
 }
@@ -186,7 +186,7 @@ pub fn hexagons(rows: usize, columns: usize, size: f32) -> impl Iterator<Item = 
         .map(move |center| Hexagon::new(center, size))
 }
 
-pub fn mesh(rows: usize, columns: usize, size: f32) -> (Vec<Point>, Vec<u16>, Vec<u32>, Vec<Attractor>, Vec<Kind>) {
+pub fn mesh(rows: usize, columns: usize, size: f32) -> (Vec<Point>, Vec<u16>, Vec<u16>, Vec<Attractor>, Vec<Kind>) {
     hexagons(rows, columns, size)
         .map(|mut hex| {
             hex.center.x -= 1.0;
@@ -225,7 +225,7 @@ pub const VERTEX_SHADER: &str = "
                 uniform vec2 offset;
 
                 void main() {
-                    float multiplier = kind == uint(2) ? 0 : (kind == uint(0) ? b : a);
+                    float multiplier = kind == uint(2) ? 0 : (kind == uint(1) ? a : b);
 
                     vec2 p = vec2(x, y) + offset;
                     vec2 v = attractor + offset - p;
@@ -253,7 +253,7 @@ pub const VERTEX_SHADER_WEB: &str = "
                 uniform float b;
 
                 void main() {
-                    float multiplier = kind < 0.5 ? b : a;
+                    float multiplier = kind > 1.5 ? 0.0 : (kind > 0.5 ? b : a);
 
                     vec2 p = position;
                     vec2 v = attractor - p;

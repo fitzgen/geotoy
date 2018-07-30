@@ -37,7 +37,7 @@ use geotoy::{Attractor, Kind, Point};
 use std::cell::RefCell;
 
 thread_local! {
-    static MESH: RefCell<Option<(Vec<Point>, Vec<u16>, Vec<u32>, Vec<Attractor>, Vec<Kind>)>> =
+    static MESH: RefCell<Option<(Vec<Point>, Vec<u16>, Vec<u16>, Vec<Attractor>, Vec<Kind>)>> =
         RefCell::new(None);
 }
 
@@ -75,6 +75,21 @@ pub fn line_dim() -> usize {
 #[wasm_bindgen]
 pub fn lines() -> *const u16 {
     MESH.with(|mesh| mesh.borrow().as_ref().unwrap().1.as_ptr())
+}
+
+#[wasm_bindgen]
+pub fn triangles_len() -> usize {
+    MESH.with(|mesh| mesh.borrow().as_ref().unwrap().2.len())
+}
+
+#[wasm_bindgen]
+pub fn triangle_dim() -> usize {
+    1
+}
+
+#[wasm_bindgen]
+pub fn triangles() -> *const u16 {
+    MESH.with(|mesh| mesh.borrow().as_ref().unwrap().2.as_ptr())
 }
 
 #[wasm_bindgen]

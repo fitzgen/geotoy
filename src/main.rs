@@ -26,7 +26,7 @@ struct DrawContext<'a> {
     attractors_vb: &'a glium::VertexBuffer<Attractor>,
     kinds_vb: &'a glium::VertexBuffer<Kind>,
     lines_ib: &'a glium::IndexBuffer<u16>,
-    triangles_ib: &'a glium::IndexBuffer<u32>,
+    triangles_ib: &'a glium::IndexBuffer<u16>,
 }
 
 enum CursorPositionFn {

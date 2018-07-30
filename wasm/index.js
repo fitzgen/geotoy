@@ -7,6 +7,9 @@ import {
   lines_len,
   line_dim,
   lines,
+  triangles_len,
+  triangle_dim,
+  triangles,
   attractors_len,
   attractor_dim,
   attractors,
@@ -54,7 +57,9 @@ let pointsBuffer = null;
 let attractorsBuffer = null;
 let kindsBuffer = null;
 let linesBuffer = null;
-let shaderProgram = null;
+let trianglesBuffer = null;
+let linesProgram = null;
+let trianglesProgram = null;
 const createMesh = () => {
   create_mesh(rows, columns, size);
 
@@ -81,6 +86,13 @@ const createMesh = () => {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, linesArray, gl.STATIC_DRAW);
   linesBuffer.itemSize = gl.UNSIGNED_SHORT; // u16
   linesBuffer.numItems = lines_len();
+
+  trianglesBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, trianglesBuffer);
+  const trianglesArray = new Uint16Array(memory.buffer, triangles(), triangles_len() * triangle_dim());
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, trianglesArray, gl.STATIC_DRAW);
+  trianglesBuffer.itemSize = gl.UNSIGNED_SHORT; // u16
+  trianglesBuffer.numItems = triangles_len();
 }
 
 let animationId = null;
@@ -103,21 +115,24 @@ const scheduleDraw = () => {
     var stride = 0;         // how many bytes to move to the next vertex
     // 0 = use the correct stride for type and vertexAttribPointer's size argument (2nd)
 
+    // = Drawing lines =
+    gl.useProgram(linesProgram);
+
     // = Set position attribute =
     gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
-    var positionLoc = gl.getAttribLocation(shaderProgram, "position");
+    var positionLoc = gl.getAttribLocation(linesProgram, "position");
     gl.vertexAttribPointer(positionLoc, point_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(positionLoc);
 
     // = Set attractor attribute =
     gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
-    var attractorsLoc = gl.getAttribLocation(shaderProgram, "attractor");
+    var attractorsLoc = gl.getAttribLocation(linesProgram, "attractor");
     gl.vertexAttribPointer(attractorsLoc, attractor_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(attractorsLoc);
 
     // = Set kind attribute =
     gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
-    var kindLoc = gl.getAttribLocation(shaderProgram, "kind");
+    var kindLoc = gl.getAttribLocation(linesProgram, "kind");
     gl.vertexAttribPointer(kindLoc, kind_dim(), type, normalize, stride, offset);
     gl.enableVertexAttribArray(kindLoc);
 
@@ -125,26 +140,60 @@ const scheduleDraw = () => {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
 
     // = Set uniforms for background grid =
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), 0);
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), 0);
-    gl.uniform3f(gl.getUniformLocation(shaderProgram, "color"), 0.3, 0.3, 0.3);
+    gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), 0);
+    gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), 0);
+    gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 0.3, 0.3, 0.3);
 
     gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
 
     // = Set uniforms for lines =
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "a"), a);
-    gl.uniform1f(gl.getUniformLocation(shaderProgram, "b"), b);
-    gl.uniform3f(gl.getUniformLocation(shaderProgram, "color"), 1.0, 1.0, 1.0);
+    gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), a);
+    gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), b);
+    gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 1.0, 1.0, 1.0);
 
     gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
+
+    gl.useProgram(trianglesProgram);
+
+    // = Set position attribute =
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
+    var positionLoc = gl.getAttribLocation(trianglesProgram, "position");
+    gl.vertexAttribPointer(positionLoc, point_dim(), type, normalize, stride, offset);
+    gl.enableVertexAttribArray(positionLoc);
+
+    // = Set attractor attribute =
+    gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
+    var attractorsLoc = gl.getAttribLocation(trianglesProgram, "attractor");
+    gl.vertexAttribPointer(attractorsLoc, attractor_dim(), type, normalize, stride, offset);
+    gl.enableVertexAttribArray(attractorsLoc);
+
+    // = Set kind attribute =
+    gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
+    var kindLoc = gl.getAttribLocation(trianglesProgram, "kind");
+    gl.vertexAttribPointer(kindLoc, kind_dim(), type, normalize, stride, offset);
+    gl.enableVertexAttribArray(kindLoc);
+
+    // = Set uniforms for triangles =
+    gl.uniform1f(gl.getUniformLocation(trianglesProgram, "a"), a);
+    gl.uniform1f(gl.getUniformLocation(trianglesProgram, "b"), b);
+    gl.uniform3f(gl.getUniformLocation(trianglesProgram, "color"), 0.2, 0.1, 0.1);
+
+    // = Set index buffer =
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, trianglesBuffer);
+
+    // = Blend function =
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+
+    gl.drawElements(gl.TRIANGLES, trianglesBuffer.numItems, trianglesBuffer.itemSize, 0);
   });
 };
 
-const compileShaders = () => {
-  shaderProgram = gl.createProgram();
+const compileShaderProgram = (vertex_src, fragment_src) => {
+  const shaderProgram = gl.createProgram();
 
   const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-  gl.shaderSource(vertexShader, vertex_shader());
+  gl.shaderSource(vertexShader, vertex_src);
   gl.compileShader(vertexShader);
   if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
     throw new Error("could not compile vertex shader: " + gl.getShaderInfoLog(vertexShader));
@@ -152,7 +201,7 @@ const compileShaders = () => {
   gl.attachShader(shaderProgram, vertexShader);
 
   const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-  gl.shaderSource(fragmentShader, fragment_shader());
+  gl.shaderSource(fragmentShader, fragment_src);
   gl.compileShader(fragmentShader);
   if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
     throw new Error("could not compile fragment shader: " + gl.getShaderInfoLog(fragmentShader));
@@ -165,11 +214,16 @@ const compileShaders = () => {
     throw new Error("Could not link shaders");
   }
 
-  gl.useProgram(shaderProgram);
+  return shaderProgram;
+};
+
+const compileShaders = () => {
+  trianglesProgram = compileShaderProgram(vertex_shader(), fragment_shader());
+  linesProgram = compileShaderProgram(vertex_shader(), fragment_shader());
 };
 
 const main = () => {
-  compileShaders()
+  compileShaders();
   onResize();
   scheduleDraw();
 };

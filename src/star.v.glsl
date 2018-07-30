@@ -11,7 +11,7 @@ uniform float b;
 uniform vec2 offset;
 
 void main() {
-    float multiplier = kind == uint(2) ? 0 : (kind == uint(0) ? b : a);
+    float multiplier = kind == uint(2) ? 0 : (kind == uint(1) ? a : b);
 
     vec2 p = vec2(x, y) + offset;
     vec2 v = attractor + offset - p;
