@@ -22,6 +22,9 @@ import {
 
 const canvas = window.canvas = document.getElementById("canvas");
 const gl = window.gl = canvas.getContext("webgl");
+const gridToggle = document.getElementById("grid");
+const linesToggle = document.getElementById("lines");
+const polygonsToggle = document.getElementById("polygons");
 
 let size = 0;
 let rows = 0;
@@ -62,6 +65,25 @@ let linesBuffer = null;
 let trianglesBuffer = null;
 let linesProgram = null;
 let trianglesProgram = null;
+let showGrid = gridToggle.checked;
+let showLines = linesToggle.checked;
+let fillPolygons = polygonsToggle.checked;
+
+gridToggle.addEventListener("change", (ev) => {
+  showGrid = ev.target.checked;
+  scheduleDraw();
+});
+
+linesToggle.addEventListener("change", (ev) => {
+  showLines = ev.target.checked;
+  scheduleDraw();
+});
+
+polygonsToggle.addEventListener("change", (ev) => {
+  fillPolygons = ev.target.checked;
+  scheduleDraw();
+});
+
 const createMesh = () => {
   create_mesh(rows, columns, size);
 
@@ -142,56 +164,62 @@ const scheduleDraw = () => {
     // = Set index buffer =
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesBuffer);
 
-    // = Set uniforms for background grid =
-    gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), 0);
-    gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), 0);
-    gl.uniform2f(gl.getUniformLocation(linesProgram, "offset"), 0.0, 0.0);
-    gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 0.3, 0.3, 0.3);
+    if (showGrid) {
+      // = Set uniforms for background grid =
+      gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), 0);
+      gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), 0);
+      gl.uniform2f(gl.getUniformLocation(linesProgram, "offset"), 0.0, 0.0);
+      gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 0.3, 0.3, 0.3);
 
-    gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
+      gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
+    }
 
-    // = Set uniforms for lines =
-    gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), a);
-    gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), b);
-    gl.uniform2f(gl.getUniformLocation(linesProgram, "offset"), 0.0, 0.0);
-    gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 1.0, 1.0, 1.0);
+    if (showLines) {
+      // = Set uniforms for lines =
+      gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), a);
+      gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), b);
+      gl.uniform2f(gl.getUniformLocation(linesProgram, "offset"), 0.0, 0.0);
+      gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 1.0, 1.0, 1.0);
 
-    gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
+      gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
+    }
 
-    gl.useProgram(trianglesProgram);
+    if (fillPolygons) {
+      gl.useProgram(trianglesProgram);
 
-    // = Set position attribute =
-    gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
-    var positionLoc = gl.getAttribLocation(trianglesProgram, "position");
-    gl.vertexAttribPointer(positionLoc, point_dim(), type, normalize, stride, offset);
-    gl.enableVertexAttribArray(positionLoc);
+      // = Set position attribute =
+      gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
+      var positionLoc = gl.getAttribLocation(trianglesProgram, "position");
+      gl.vertexAttribPointer(positionLoc, point_dim(), type, normalize, stride, offset);
+      gl.enableVertexAttribArray(positionLoc);
 
-    // = Set attractor attribute =
-    gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
-    var attractorsLoc = gl.getAttribLocation(trianglesProgram, "attractor");
-    gl.vertexAttribPointer(attractorsLoc, attractor_dim(), type, normalize, stride, offset);
-    gl.enableVertexAttribArray(attractorsLoc);
+      // = Set attractor attribute =
+      gl.bindBuffer(gl.ARRAY_BUFFER, attractorsBuffer);
+      var attractorsLoc = gl.getAttribLocation(trianglesProgram, "attractor");
+      gl.vertexAttribPointer(attractorsLoc, attractor_dim(), type, normalize, stride, offset);
+      gl.enableVertexAttribArray(attractorsLoc);
 
-    // = Set kind attribute =
-    gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
-    var kindLoc = gl.getAttribLocation(trianglesProgram, "kind");
-    gl.vertexAttribPointer(kindLoc, kind_dim(), type, normalize, stride, offset);
-    gl.enableVertexAttribArray(kindLoc);
+      // = Set kind attribute =
+      gl.bindBuffer(gl.ARRAY_BUFFER, kindsBuffer);
+      var kindLoc = gl.getAttribLocation(trianglesProgram, "kind");
+      gl.vertexAttribPointer(kindLoc, kind_dim(), type, normalize, stride, offset);
+      gl.enableVertexAttribArray(kindLoc);
 
-    // = Set uniforms for triangles =
-    gl.uniform1f(gl.getUniformLocation(trianglesProgram, "a"), a);
-    gl.uniform1f(gl.getUniformLocation(trianglesProgram, "b"), b);
-    gl.uniform2f(gl.getUniformLocation(trianglesProgram, "offset"), 0.0, 0.0);
-    gl.uniform3f(gl.getUniformLocation(trianglesProgram, "color"), 0.2, 0.1, 0.1);
+      // = Set uniforms for triangles =
+      gl.uniform1f(gl.getUniformLocation(trianglesProgram, "a"), a);
+      gl.uniform1f(gl.getUniformLocation(trianglesProgram, "b"), b);
+      gl.uniform2f(gl.getUniformLocation(trianglesProgram, "offset"), 0.0, 0.0);
+      gl.uniform3f(gl.getUniformLocation(trianglesProgram, "color"), 0.2, 0.1, 0.1);
 
-    // = Set index buffer =
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, trianglesBuffer);
+      // = Set index buffer =
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, trianglesBuffer);
 
-    // = Blend function =
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+      // = Blend function =
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
 
-    gl.drawElements(gl.TRIANGLES, trianglesBuffer.numItems, trianglesBuffer.itemSize, 0);
+      gl.drawElements(gl.TRIANGLES, trianglesBuffer.numItems, trianglesBuffer.itemSize, 0);
+    }
   });
 };
 

@@ -12,10 +12,25 @@
              width: 100%;
              height: 100%;
          }
+
+         #controls {
+             position: absolute;
+             top: 20px;
+             right: 20px;
+             border: 1px solid gray;
+             border-radius: 10px;
+             padding: 10px;
+             background: #fffe;
+         }
         </style>
     </head>
     <body>
-        <canvas id="canvas" />
+        <canvas id='canvas'></canvas>
+        <div id='controls'>
+            <div><input type='checkbox' checked id='grid'><label for='grid'>Show base grid</label></div>
+            <div><input type='checkbox' checked id='lines'><label for='lines'>Show lines</label></div>
+            <div><input type='checkbox' checked id='polygons'><label for='polygons'>Fill polygons</label></div>
+        </div>
         <script src='./bootstrap.js'></script>
     </body>
 </html>
