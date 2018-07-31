@@ -145,6 +145,7 @@ const scheduleDraw = () => {
     // = Set uniforms for background grid =
     gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), 0);
     gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), 0);
+    gl.uniform2f(gl.getUniformLocation(linesProgram, "offset"), 0.0, 0.0);
     gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 0.3, 0.3, 0.3);
 
     gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
@@ -152,6 +153,7 @@ const scheduleDraw = () => {
     // = Set uniforms for lines =
     gl.uniform1f(gl.getUniformLocation(linesProgram, "a"), a);
     gl.uniform1f(gl.getUniformLocation(linesProgram, "b"), b);
+    gl.uniform2f(gl.getUniformLocation(linesProgram, "offset"), 0.0, 0.0);
     gl.uniform3f(gl.getUniformLocation(linesProgram, "color"), 1.0, 1.0, 1.0);
 
     gl.drawElements(gl.LINES, linesBuffer.numItems, linesBuffer.itemSize, 0);
@@ -179,6 +181,7 @@ const scheduleDraw = () => {
     // = Set uniforms for triangles =
     gl.uniform1f(gl.getUniformLocation(trianglesProgram, "a"), a);
     gl.uniform1f(gl.getUniformLocation(trianglesProgram, "b"), b);
+    gl.uniform2f(gl.getUniformLocation(trianglesProgram, "offset"), 0.0, 0.0);
     gl.uniform3f(gl.getUniformLocation(trianglesProgram, "color"), 0.2, 0.1, 0.1);
 
     // = Set index buffer =

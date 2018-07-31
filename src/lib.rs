@@ -251,12 +251,13 @@ pub const VERTEX_SHADER_WEB: &str = "
                 attribute float kind;
                 uniform float a;
                 uniform float b;
+                uniform vec2 offset;
 
                 void main() {
                     float multiplier = kind > 1.5 ? 0.0 : (kind > 0.5 ? b : a);
 
-                    vec2 p = position;
-                    vec2 v = attractor - p;
+                    vec2 p = position + offset;
+                    vec2 v = attractor + offset - p;
                     gl_Position = vec4(p + multiplier * v, 0.0, 1.0);
                 }
 ";

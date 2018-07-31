@@ -81,7 +81,7 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
                         a: ctx.a,
                         b: ctx.b,
                         offset: offset,
-                        color: [1.0, 1.0, 1.0f32],
+                        color: [0.2, 0.1, 0.1f32],
                     },
                     params,
                 )
@@ -140,8 +140,8 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     let triangles_program = program!(&display,
         140 => {
-            vertex: include_str!("star.v.glsl"),
-            fragment: include_str!("triangles.f.glsl"),
+            vertex: geotoy::VERTEX_SHADER,
+            fragment: geotoy::FRAGMENT_SHADER,
         },
     )?;
 
