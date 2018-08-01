@@ -48,6 +48,19 @@ const onResize = () => {
   scheduleDraw();
 };
 window.addEventListener("resize", onResize);
+window.addEventListener("keypress", (ev) => {
+  const key = ev.key;
+  if (key == 'g') {
+    gridToggle.checked = !gridToggle.checked;
+    gridToggled();
+  } else if (key == 'l') {
+    linesToggle.checked = !linesToggle.checked;
+    linesToggled();
+  } else if (key == 'p') {
+    polygonsToggle.checked = !polygonsToggle.checked;
+    polygonsToggled();
+  }
+});
 
 const onMouseMove = (ev) => {
   const bounds = ev.target.getBoundingClientRect();
@@ -69,20 +82,24 @@ let showGrid = gridToggle.checked;
 let showLines = linesToggle.checked;
 let fillPolygons = polygonsToggle.checked;
 
-gridToggle.addEventListener("change", (ev) => {
-  showGrid = ev.target.checked;
+function gridToggled() {
+  showGrid = gridToggle.checked;
   scheduleDraw();
-});
+}
 
-linesToggle.addEventListener("change", (ev) => {
-  showLines = ev.target.checked;
+function linesToggled() {
+  showLines = linesToggle.checked;
   scheduleDraw();
-});
+}
 
-polygonsToggle.addEventListener("change", (ev) => {
-  fillPolygons = ev.target.checked;
+function polygonsToggled() {
+  fillPolygons = polygonsToggle.checked;
   scheduleDraw();
-});
+}
+
+gridToggle.addEventListener("change", gridToggled);
+linesToggle.addEventListener("change", linesToggled);
+polygonsToggle.addEventListener("change", polygonsToggled);
 
 const createMesh = () => {
   create_mesh(rows, columns, size);

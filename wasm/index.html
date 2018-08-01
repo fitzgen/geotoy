@@ -22,14 +22,20 @@
              padding: 10px;
              background: #fffe;
          }
+
+         u {
+             display: inline;
+             text-decoration: none;
+             font-weight: bold;
+         }
         </style>
     </head>
     <body>
         <canvas id='canvas'></canvas>
         <div id='controls'>
-            <div><input type='checkbox' checked id='grid'><label for='grid'>Show base grid</label></div>
-            <div><input type='checkbox' checked id='lines'><label for='lines'>Show lines</label></div>
-            <div><input type='checkbox' checked id='polygons'><label for='polygons'>Fill polygons</label></div>
+            <div><input type='checkbox' checked id='grid'><label for='grid'>Show base <u>g</u>rid</label></div>
+            <div><input type='checkbox' checked id='lines'><label for='lines'>Show <u>l</u>ines</label></div>
+            <div><input type='checkbox' checked id='polygons'><label for='polygons'>Fill <u>p</u>olygons</label></div>
         </div>
         <script src='./bootstrap.js'></script>
     </body>

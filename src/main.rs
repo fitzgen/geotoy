@@ -181,7 +181,8 @@ fn main() -> Result<(), Box<std::error::Error>> {
                                 draw_context.draw_grid = !draw_context.draw_grid;
                                 need_draw = true;
                             }
-                            VirtualKeyCode::T => {
+                            VirtualKeyCode::T | VirtualKeyCode::P => {
+                                // KeyCode P is for "polygons", consistent with web version
                                 draw_context.draw_triangles = !draw_context.draw_triangles;
                                 need_draw = true;
                             }
