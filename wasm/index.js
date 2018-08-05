@@ -21,7 +21,6 @@ import {
 } from "./geotoy_wasm";
 
 const canvas = window.canvas = document.getElementById("canvas");
-const gl = window.gl = canvas.getContext("webgl");
 const gridToggle = document.getElementById("grid");
 const linesToggle = document.getElementById("lines");
 const polygonsToggle = document.getElementById("polygons");
@@ -32,6 +31,20 @@ let columns = 0;
 
 let a = 0.2;
 let b = 0.6;
+
+let gl = null;
+
+const setUpContext = () => {
+  gl = window.gl = canvas.getContext("webgl");
+  compileShaders();
+  onResize();
+};
+
+canvas.addEventListener('webglcontextlost', function(ev) {
+  ev.preventDefault();
+}, false);
+
+canvas.addEventListener('webglcontextrestored', setUpContext, false);
 
 const onResize = () => {
   //size = Math.ceil(Math.min(canvas.width, canvas.height) / 5);
@@ -274,8 +287,7 @@ const compileShaders = () => {
 };
 
 const main = () => {
-  compileShaders();
-  onResize();
+  setUpContext();
   scheduleDraw();
 };
 
