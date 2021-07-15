@@ -10,18 +10,19 @@ use glium::{
     DrawParameters,
     LinearBlendingFactor,
     glutin::{self, event::VirtualKeyCode}, Surface,
+    glutin::event_loop::ControlFlow::Exit,
 };
 
 struct DrawContext {
-    display: glium::Display,
-    lines_program: glium::program::Program,
-    triangles_program: glium::program::Program,
     a: f32,
     b: f32,
     offset: (f32, f32),
     draw_grid: bool,
     draw_triangles: bool,
     draw_lines: bool,
+    display: glium::Display,
+    lines_program: glium::program::Program,
+    triangles_program: glium::program::Program,
     points_vb: glium::VertexBuffer<Point>,
     attractors_vb: glium::VertexBuffer<Attractor>,
     kinds_vb: glium::VertexBuffer<Kind>,
@@ -144,20 +145,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let mut draw_context = DrawContext {
-        display:           display,
-        lines_program:     lines_program,
-        triangles_program: triangles_program,
         a:                 0.1,
         b:                 0.6,
         offset:            (0.0, 0.0),
         draw_grid:         true,
         draw_triangles:    true,
         draw_lines:        true,
-        points_vb:         points_vb,
-        attractors_vb:     attractors_vb,
-        kinds_vb:          kinds_vb,
-        lines_ib:          lines_ib,
-        triangles_ib:      triangles_ib,
+        display,
+        lines_program,
+        triangles_program,
+        points_vb,
+        attractors_vb,
+        kinds_vb,
+        lines_ib,
+        triangles_ib,
     };
 
     let mut cursor_position_fn = CursorPositionFn::HexParams;
@@ -174,9 +175,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     if let Some(keycode) = input.virtual_keycode {
                         match keycode {
-                            VirtualKeyCode::Escape => {
-                                *control_flow = glutin::event_loop::ControlFlow::Exit;
-                            }
+                            VirtualKeyCode::Escape => *control_flow = Exit,
                             VirtualKeyCode::G => {
                                 draw_context.draw_grid = !draw_context.draw_grid;
                                 need_draw = true;
@@ -200,9 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         };
                     }
                 }
-                glutin::event::WindowEvent::CloseRequested => {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit;
-                }
+                glutin::event::WindowEvent::CloseRequested => *control_flow = Exit,
                 glutin::event::WindowEvent::Resized(new_size) => {
                     size = new_size;
                     need_draw = true;
@@ -214,7 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             draw_context.b = ((position.y as f32) / (size.height as f32) - 0.5) * 10.0;
                         }
                         CursorPositionFn::Offset => {
-                            draw_context.offset.0 = (position.x as f32) / (size.width  as f32) - 0.5;
+                            draw_context.offset.0 = (position.x as f32) / (size.width as f32) - 0.5;
                             draw_context.offset.1 = -((position.y as f32) / (size.height as f32) - 0.5);
                         }
                     }
@@ -227,8 +224,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if need_draw {
             draw(&draw_context).unwrap_or_else(|e| {
-                println!("{}", e);
-                *control_flow = glutin::event_loop::ControlFlow::Exit;
+                eprintln!("{}", e);
+                *control_flow = Exit;
             });
         }
     });
