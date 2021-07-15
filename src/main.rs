@@ -9,24 +9,24 @@ use glium::{
     BlendingFunction,
     DrawParameters,
     LinearBlendingFactor,
-    glutin::{self, VirtualKeyCode}, Surface,
+    glutin::{self, event::VirtualKeyCode}, Surface,
 };
 
-struct DrawContext<'a> {
-    display: &'a glium::Display,
-    lines_program: &'a glium::program::Program,
-    triangles_program: &'a glium::program::Program,
+struct DrawContext {
+    display: glium::Display,
+    lines_program: glium::program::Program,
+    triangles_program: glium::program::Program,
     a: f32,
     b: f32,
     offset: (f32, f32),
     draw_grid: bool,
     draw_triangles: bool,
     draw_lines: bool,
-    points_vb: &'a glium::VertexBuffer<Point>,
-    attractors_vb: &'a glium::VertexBuffer<Attractor>,
-    kinds_vb: &'a glium::VertexBuffer<Kind>,
-    lines_ib: &'a glium::IndexBuffer<u16>,
-    triangles_ib: &'a glium::IndexBuffer<u16>,
+    points_vb: glium::VertexBuffer<Point>,
+    attractors_vb: glium::VertexBuffer<Attractor>,
+    kinds_vb: glium::VertexBuffer<Kind>,
+    lines_ib: glium::IndexBuffer<u16>,
+    triangles_ib: glium::IndexBuffer<u16>,
 }
 
 enum CursorPositionFn {
@@ -57,9 +57,9 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
         if ctx.draw_grid {
             target
                 .draw(
-                    (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-                    ctx.lines_ib,
-                    ctx.lines_program,
+                    (&ctx.points_vb, &ctx.attractors_vb, &ctx.kinds_vb),
+                    &ctx.lines_ib,
+                    &ctx.lines_program,
                     &uniform! {
                         a: 0.0f32,
                         b: 0.0f32,
@@ -74,9 +74,9 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
         if ctx.draw_triangles {
             target
                 .draw(
-                    (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-                    ctx.triangles_ib,
-                    ctx.triangles_program,
+                    (&ctx.points_vb, &ctx.attractors_vb, &ctx.kinds_vb),
+                    &ctx.triangles_ib,
+                    &ctx.triangles_program,
                     &uniform! {
                         a: ctx.a,
                         b: ctx.b,
@@ -91,9 +91,9 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
         if ctx.draw_lines {
             target
                 .draw(
-                    (ctx.points_vb, ctx.attractors_vb, ctx.kinds_vb),
-                    ctx.lines_ib,
-                    ctx.lines_program,
+                    (&ctx.points_vb, &ctx.attractors_vb, &ctx.kinds_vb),
+                    &ctx.lines_ib,
+                    &ctx.lines_program,
                     &uniform! {
                         a: ctx.a,
                         b: ctx.b,
@@ -109,21 +109,19 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
     target.finish()
 }
 
-fn main() -> Result<(), Box<std::error::Error>> {
-    let mut width = 800;
-    let mut height = 800;
-
-    let mut events_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new().with_dimensions(width, height);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let event_loop = glutin::event_loop::EventLoop::new();
+    let mut size =  glium::glutin::dpi::PhysicalSize::new(800, 800);
+    let window = glutin::window::WindowBuilder::new().with_inner_size(size);
     let context = glutin::ContextBuilder::new();
-    let display = glium::Display::new(window, context, &events_loop)?;
+    let display = glium::Display::new(window, context, &event_loop)?;
 
     let rows = 5;
     let cols = 5;
 
-    let size = (1.0 - -1.0) / ((cols - 1) as f32 * 1.5);
+    let mesh_size = (1.0 - -1.0) / ((cols - 1) as f32 * 1.5);
 
-    let (points, lines, triangles, attractors, kinds) = geotoy::mesh(rows, cols, size);
+    let (points, lines, triangles, attractors, kinds) = geotoy::mesh(rows, cols, mesh_size);
 
     let points_vb = glium::VertexBuffer::new(&display, &points)?;
     let attractors_vb = glium::VertexBuffer::new(&display, &attractors)?;
@@ -146,37 +144,39 @@ fn main() -> Result<(), Box<std::error::Error>> {
     )?;
 
     let mut draw_context = DrawContext {
-        display:           &display,
-        lines_program:     &lines_program,
-        triangles_program: &triangles_program,
+        display:           display,
+        lines_program:     lines_program,
+        triangles_program: triangles_program,
         a:                 0.1,
         b:                 0.6,
         offset:            (0.0, 0.0),
         draw_grid:         true,
         draw_triangles:    true,
         draw_lines:        true,
-        points_vb:         &points_vb,
-        attractors_vb:     &attractors_vb,
-        kinds_vb:          &kinds_vb,
-        lines_ib:          &lines_ib,
-        triangles_ib:      &triangles_ib,
+        points_vb:         points_vb,
+        attractors_vb:     attractors_vb,
+        kinds_vb:          kinds_vb,
+        lines_ib:          lines_ib,
+        triangles_ib:      triangles_ib,
     };
 
     let mut cursor_position_fn = CursorPositionFn::HexParams;
 
     draw(&draw_context)?;
 
-    loop {
-        let mut should_quit = false;
+    event_loop.run(move |event, _target, control_flow| {
         let mut need_draw = false;
-        events_loop.poll_events(|event| match event {
-            glutin::Event::WindowEvent { event, .. } => match event {
-                glutin::WindowEvent::KeyboardInput { input, .. }
-                    if input.state == glutin::ElementState::Pressed =>
+
+        match event {
+            glutin::event::Event::WindowEvent { event, .. } => match event {
+                glutin::event::WindowEvent::KeyboardInput { input, .. }
+                    if input.state == glutin::event::ElementState::Pressed =>
                 {
                     if let Some(keycode) = input.virtual_keycode {
                         match keycode {
-                            VirtualKeyCode::Escape => should_quit = true,
+                            VirtualKeyCode::Escape => {
+                                *control_flow = glutin::event_loop::ControlFlow::Exit;
+                            }
                             VirtualKeyCode::G => {
                                 draw_context.draw_grid = !draw_context.draw_grid;
                                 need_draw = true;
@@ -200,21 +200,22 @@ fn main() -> Result<(), Box<std::error::Error>> {
                         };
                     }
                 }
-                glutin::WindowEvent::Closed => should_quit = true,
-                glutin::WindowEvent::Resized(w, h) => {
-                    width = w;
-                    height = h;
+                glutin::event::WindowEvent::CloseRequested => {
+                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                }
+                glutin::event::WindowEvent::Resized(new_size) => {
+                    size = new_size;
                     need_draw = true;
                 }
-                glutin::WindowEvent::CursorMoved { position, .. } => {
+                glutin::event::WindowEvent::CursorMoved { position, .. } => {
                     match cursor_position_fn {
                         CursorPositionFn::HexParams => {
-                            draw_context.a = ((position.0 as f32) / (width as f32) - 0.5) * 10.0;
-                            draw_context.b = ((position.1 as f32) / (height as f32) - 0.5) * 10.0;
+                            draw_context.a = ((position.x as f32) / (size.width as f32) - 0.5) * 10.0;
+                            draw_context.b = ((position.y as f32) / (size.height as f32) - 0.5) * 10.0;
                         }
                         CursorPositionFn::Offset => {
-                            draw_context.offset.0 = (position.0 as f32) / (width  as f32) - 0.5;
-                            draw_context.offset.1 = -((position.1 as f32) / (height as f32) - 0.5);
+                            draw_context.offset.0 = (position.x as f32) / (size.width  as f32) - 0.5;
+                            draw_context.offset.1 = -((position.y as f32) / (size.height as f32) - 0.5);
                         }
                     }
                     need_draw = true;
@@ -222,14 +223,13 @@ fn main() -> Result<(), Box<std::error::Error>> {
                 _ => (),
             },
             _ => (),
-        });
-
-        if should_quit {
-            return Ok(());
-        }
+        };
 
         if need_draw {
-            draw(&draw_context)?;
+            draw(&draw_context).unwrap_or_else(|e| {
+                println!("{}", e);
+                *control_flow = glutin::event_loop::ControlFlow::Exit;
+            });
         }
-    }
+    });
 }

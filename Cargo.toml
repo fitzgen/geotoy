@@ -9,7 +9,7 @@ path = "src/main.rs"
 required-features = ["glium"]
 
 [dependencies]
-glium = { version = "0.21", optional = true }
+glium = { version = "0.30.1", optional = true }
 
 [features]
 default-features = ["glium"]
