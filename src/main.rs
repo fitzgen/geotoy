@@ -10,7 +10,7 @@ use glium::{
     DrawParameters,
     LinearBlendingFactor,
     glutin::{self, event::VirtualKeyCode}, Surface,
-    glutin::event_loop::ControlFlow::Exit,
+    glutin::event_loop::ControlFlow::{self, Exit},
 };
 
 struct DrawContext {
@@ -170,6 +170,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     event_loop.run(move |event, _target, control_flow| {
         let mut need_draw = false;
+        *control_flow = ControlFlow::Wait;
 
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
