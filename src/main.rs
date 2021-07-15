@@ -112,10 +112,13 @@ fn draw(ctx: &DrawContext) -> Result<(), glium::SwapBuffersError> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();
-    let mut size =  glium::glutin::dpi::PhysicalSize::new(800, 800);
-    let window = glutin::window::WindowBuilder::new().with_inner_size(size);
+    let window = glutin::window::WindowBuilder::new().with_inner_size(
+        glium::glutin::dpi::LogicalSize::new(800, 800)
+    );
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &event_loop)?;
+
+    let mut size = display.gl_window().window().inner_size();
 
     let rows = 5;
     let cols = 5;
